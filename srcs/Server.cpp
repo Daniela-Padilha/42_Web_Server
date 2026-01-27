@@ -31,28 +31,33 @@ Server::Server(int port) {
 }
 
 Server::~Server() {
+	for (size_t i = 0; i < _clients.size(); i++)
+		close(_clients[i]);
 	close(_serverFd);
 }
 
 void Server::start() {
 	std::cout << "Server is listening... \n";
-	acceptClient();
+	while (1)
+		acceptClient();
 }
 
 void Server::acceptClient() {
-	// client info
-	sockaddr_in client_addr;
-	int client_fd;
-	socklen_t client_len;
+	while (1) {
+		// client info
+		sockaddr_in client_addr;
+		int client_fd;
+		socklen_t client_len;
 
-	// waits a connection, when it arrives, opens a new socket to communicate
-	client_len = sizeof(client_addr);
-	client_fd = accept(_serverFd, (sockaddr*)&client_addr, &client_len);
-	if (client_fd < 0) {
-		strerror(errno);
-		return ;
+		// waits a connection, when it arrives, opens a new socket to communicate
+		client_len = sizeof(client_addr);
+		client_fd = accept(_serverFd, (sockaddr*)&client_addr, &client_len);
+		if (client_fd < 0) {
+			strerror(errno);
+			return ;
+		}
+
+		_clients.push_back(client_fd);
+		std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
 	}
-
-	std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
-	close(client_fd);
 }
