@@ -17,14 +17,14 @@ int socket_creator(void) {
 	addr.sin_port = htons(8080); //port nbr in network byte order
 	addr.sin_addr.s_addr = INADDR_ANY; //IP address (0.0.0.0)
 
-	// binds socket to local address, to reserve port for incoming connections
+	// choose address + port that socket will use
 	if (bind(socket_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
 		strerror(errno);
 		close(socket_fd);
 		return 1;
 	}
 
-	// the socket is set to listen for incoming connection attempts
+	// get socket ready for incoming connection attempts
 	if (listen(socket_fd, 10) < 0) {
 		strerror(errno);
 		close(socket_fd);
@@ -33,5 +33,24 @@ int socket_creator(void) {
 
 	std::cout << "Server is listening on port 8080...\n";
 
+	// create client
+	sockaddr_in client_addr;
+	int client_fd;
+	socklen_t client_len;
+
+	// waits a connection, when it arrives, opens a new socket to communicate
+	client_len = sizeof(client_addr);
+	client_fd = accept(socket_fd, (sockaddr*)&client_addr, &client_len);
+	if (client_fd < 0) {
+		strerror(errno);
+		close(socket_fd);
+		return 1;
+	}
+
+	std::cout << "Client connected to server!\n";
+
+	// cleanup
+	close(client_fd);
+	close(socket_fd);
 	return 0;
 }
