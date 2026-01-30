@@ -37,19 +37,6 @@ Server::~Server() {
 	close(_serverFd);
 }
 
-void setNonBlocking(int fd) {
-	// get fd status flags
-	int flags = fcntl(fd, F_GETFL);
-	if (flags < 0) {
-		strerror(errno);
-		return ;
-	}
-	// change fd status flags
-	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
-		strerror(errno);
-	}
-}
-
 void Server::start() {
 	std::cout << "Server is listening... \n";
 	while (1)
@@ -75,3 +62,17 @@ void Server::acceptClient() {
 		std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
 	}
 }
+
+void Server::setNonBlocking(int fd) {
+	// get fd status flags
+	int flags = fcntl(fd, F_GETFL);
+	if (flags < 0) {
+		strerror(errno);
+		return ;
+	}
+	// change fd status flags
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+		strerror(errno);
+	}
+}
+
