@@ -6,9 +6,9 @@
 
 class Server {
 private:
-	int			_serverFd;
-	sockaddr_in	_addr;
-	std::vector<int> _clients;
+	int					_serverFd;
+	sockaddr_in			_addr;
+	std::vector<int>	_clients;
 
 	void setNonBlocking(int fd);
 public:
