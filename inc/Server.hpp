@@ -2,6 +2,7 @@
 
 #include <netinet/in.h> //sockaddr_in
 #include <vector>
+#include <fcntl.h>
 
 class Server {
 private:
@@ -9,6 +10,7 @@ private:
 	sockaddr_in	_addr;
 	std::vector<int> _clients;
 
+	void setNonBlocking(int fd);
 public:
 	Server(int port);
 	~Server();

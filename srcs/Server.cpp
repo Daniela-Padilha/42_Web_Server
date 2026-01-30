@@ -21,19 +21,33 @@ Server::Server(int port) {
 		close(_serverFd);
 		return ;
 	}
-
 	// get server ready for incoming connection attempts
 	if (listen(_serverFd, 10) < 0) {
 		strerror(errno);
 		close(_serverFd);
 		return ;
 	}
+
+	setNonBlocking(_serverFd);
 }
 
 Server::~Server() {
 	for (size_t i = 0; i < _clients.size(); i++)
 		close(_clients[i]);
 	close(_serverFd);
+}
+
+void setNonBlocking(int fd) {
+	// get fd status flags
+	int flags = fcntl(fd, F_GETFL);
+	if (flags < 0) {
+		strerror(errno);
+		return ;
+	}
+	// change fd status flags
+	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0) {
+		strerror(errno);
+	}
 }
 
 void Server::start() {
@@ -54,9 +68,9 @@ void Server::acceptClient() {
 		client_fd = accept(_serverFd, (sockaddr*)&client_addr, &client_len);
 		if (client_fd < 0) {
 			strerror(errno);
-			return ;
+			break;
 		}
-
+		setNonBlocking(client_fd);
 		_clients.push_back(client_fd);
 		std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
 	}
