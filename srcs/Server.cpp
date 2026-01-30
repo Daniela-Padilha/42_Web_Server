@@ -28,6 +28,13 @@ Server::Server(int port) {
 		return ;
 	}
 
+	// init server poll
+	pollfd serverPoll;
+	serverPoll.fd = _serverFd;
+	serverPoll.events = POLLIN;
+	serverPoll.revents = 0;
+	_pollFds.push_back(serverPoll);
+
 	setNonBlocking(_serverFd);
 }
 
@@ -39,28 +46,54 @@ Server::~Server() {
 
 void Server::start() {
 	std::cout << "Server is listening... \n";
-	while (1)
-		acceptClient();
-}
-
-void Server::acceptClient() {
+	// event loop
 	while (1) {
-		// client info
-		sockaddr_in client_addr;
-		int client_fd;
-		socklen_t client_len;
+		int ready;
 
-		// waits a connection, when it arrives, opens a new socket to communicate
-		client_len = sizeof(client_addr);
-		client_fd = accept(_serverFd, (sockaddr*)&client_addr, &client_len);
-		if (client_fd < 0) {
+		// setup poll to sleep until an event occurs
+		ready = poll(&_pollFds[0], _pollFds.size(), -1);
+		if (ready < 0) {
 			strerror(errno);
 			break;
 		}
-		setNonBlocking(client_fd);
-		_clients.push_back(client_fd);
-		std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
+		// check which fd had an event, if is ready for reading
+		for (size_t i = 0; i < _pollFds.size(); i++) {
+			if (_pollFds[i].revents & POLLIN) {
+				// if it is the server fd, acceptClient
+				if (_pollFds[i].fd == _serverFd)
+					acceptClient();
+			}
+			// clear handled event
+			_pollFds[i].revents = 0;
+		}
 	}
+}
+
+void Server::acceptClient() {
+	// client info
+	sockaddr_in client_addr;
+	int client_fd;
+	socklen_t client_len;
+
+	// waits a connection, when it arrives, opens a new socket to communicate
+	client_len = sizeof(client_addr);
+	client_fd = accept(_serverFd, (sockaddr*)&client_addr, &client_len);
+	if (client_fd < 0) {
+		if (errno != EAGAIN && errno != EWOULDBLOCK)
+			strerror(errno);
+		return ;
+	}
+	setNonBlocking(client_fd);
+	_clients.push_back(client_fd);
+
+	// init client poll
+	pollfd clientPoll;
+	clientPoll.fd = client_fd;
+	clientPoll.events = POLLIN;
+	clientPoll.revents = 0;
+	_pollFds.push_back(clientPoll);
+
+	std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
 }
 
 void Server::setNonBlocking(int fd) {
