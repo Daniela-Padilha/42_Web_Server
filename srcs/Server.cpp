@@ -68,11 +68,30 @@ void Server::start() {
 
 			// when client tries to connect
 			if (_pollFds[i].revents & POLLIN) {
-				// if it is the server fd, acceptClient
 				if (_pollFds[i].fd == _serverFd)
 					acceptClient();
 				else {
-					//read
+					Client* client = getClient(_pollFds[i].fd);
+					if (!client)
+						continue;
+					char buffer[4096];
+					int bytes = read(client->fd, buffer, sizeof(buffer));
+					if (bytes == 0) {
+						removeClient(i);
+						continue;
+					}
+					else if (bytes < 0) {
+						if (errno != EAGAIN && errno != EWOULDBLOCK) {
+							removeClient(i);
+							continue;
+						}
+					}
+					else {
+						client->buffer.append(buffer, bytes);
+						std::cout << "Buffer size for fd "
+									<< client->fd << ": "
+									<< client->buffer.size() << "\n";
+					}
 				}
 			}
 

@@ -13,10 +13,12 @@ INC_D = inc
 #source files
 SRC = $(SRCS_D)/main.cpp \
  		$(SRCS_D)/Server.cpp \
+		$(SRCS_D)/Client.cpp \
 
 #include files
 INC = $(INC_D)/webserv.hpp \
 		$(INC_D)/Server.hpp \
+		$(INC_D)/Client.hpp \
 
 #object files
 OBJ = $(SRC:.cpp=.o)
