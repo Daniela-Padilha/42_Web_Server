@@ -39,10 +39,9 @@ Server::Server(int port) {
 }
 
 Server::~Server() {
-	for (size_t i = 0; i < _clients.size(); i++) {
-		int fd = _clients[i].getFd();
-		close(fd);
-	}
+	std::map<int, Client>::iterator it;
+	for (it = _clients.begin(); it != _clients.end(); it++)
+		close(it->first);
 	close(_serverFd);
 }
 
@@ -95,8 +94,10 @@ void Server::start() {
 									<< client->getBuffer().size() << "\n";
 					}
 					if (client->hasCompleteHeader()) {
-						std::cout << "Full HTTP headers recieved for fd "
+						std::cout << "Full HTTP headers received for fd "
 									<< client->getFd() << "\n";
+						//later: pass buffer to parser
+						client->clearBuffer();
 					}
 				}
 			}
@@ -123,7 +124,7 @@ void Server::acceptClient() {
 		return ;
 	}
 	setNonBlocking(client_fd);
-	_clients.push_back(Client(client_fd));
+	_clients.insert(std::make_pair(client_fd, Client(client_fd)));
 
 	// init client poll
 	pollfd clientPoll;
@@ -137,19 +138,13 @@ void Server::acceptClient() {
 
 void Server::removeClient(size_t index) {
 	int fd;
-	std::vector<Client>::iterator it;
 
 	fd = _pollFds[index].fd;
 	std::cout << "Client (fd=" << fd << ") disconnected\n";
 	close(fd);
 
-	// remove from clients vector
-	for (it = _clients.begin(); it != _clients.end(); it++) {
-		if (it->getFd() == fd) {
-			_clients.erase(it);
-			break;
-		}
-	}
+	// remove from clients map
+	_clients.erase(fd);
 
 	// remove from poll vector
 	_pollFds.erase(_pollFds.begin() + index);
@@ -169,9 +164,8 @@ void Server::setNonBlocking(int fd) {
 }
 
 Client* Server::getClient(int fd) {
-	for (size_t i = 0; i < _clients.size(); i++) {
-		if (_clients[i].getFd() == fd)
-			return &_clients[i];
-	}
-	return NULL;
+	std::map<int, Client>::iterator it = _clients.find(fd);
+	if (it == _clients.end())
+		return NULL;
+	return &it->second;
 }
