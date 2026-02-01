@@ -13,6 +13,7 @@ private:
 	std::vector<pollfd>	_pollFds;
 
 	void setNonBlocking(int fd);
+	void removeClient(size_t index);
 public:
 	Server(int port);
 	~Server();

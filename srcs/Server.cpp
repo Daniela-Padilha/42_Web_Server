@@ -57,14 +57,25 @@ void Server::start() {
 			break;
 		}
 		// check which fd had an event, if is ready for reading
-		for (size_t i = 0; i < _pollFds.size(); i++) {
+		for (size_t i = 0; i < _pollFds.size(); ) {
+			// when client disconnects
+			if (_pollFds[i].revents & (POLLHUP | POLLERR | POLLNVAL)) {
+				if (_pollFds[i].fd != _serverFd) {
+					removeClient(i);
+					continue;
+				}
+			}
+
+			// when client tries to connect
 			if (_pollFds[i].revents & POLLIN) {
 				// if it is the server fd, acceptClient
 				if (_pollFds[i].fd == _serverFd)
 					acceptClient();
 			}
+
 			// clear handled event
 			_pollFds[i].revents = 0;
+			i++;
 		}
 	}
 }
@@ -109,3 +120,22 @@ void Server::setNonBlocking(int fd) {
 	}
 }
 
+void Server::removeClient(size_t index) {
+	int fd;
+	std::vector<int>::iterator it;
+
+	fd = _pollFds[index].fd;
+	std::cout << "Client (fd=" << fd << ") disconnected\n";
+	close(fd);
+
+	// remove from clients vector
+	for (it = _clients.begin(); it != _clients.end(); it++) {
+		if (*it == fd) {
+			_clients.erase(it);
+			break;
+		}
+	}
+
+	// remove from poll vector
+	_pollFds.erase(_pollFds.begin() + index);
+}
