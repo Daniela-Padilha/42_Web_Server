@@ -3,11 +3,17 @@
 #include <string>
 
 class Client {
+private:
+	int			_fd;
+	std::string _buffer;
 public:
-	int			fd;
-	std::string buffer;
-
-	Client(int fd_);
+	Client(int fd);
 	~Client();
-	bool hasCompleteHeader(const std::string& buffer);
+
+	int 				getFd() const;
+	const std::string&	getBuffer() const;
+
+	void	appendToBuffer(const char* data, size_t len);
+	bool	hasCompleteHeader() const;
+	void	clearBuffer();
 };

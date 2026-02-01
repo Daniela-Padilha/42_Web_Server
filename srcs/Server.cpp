@@ -39,8 +39,10 @@ Server::Server(int port) {
 }
 
 Server::~Server() {
-	for (size_t i = 0; i < _clients.size(); i++)
-		close(_clients[i].fd);
+	for (size_t i = 0; i < _clients.size(); i++) {
+		int fd = _clients[i].getFd();
+		close(fd);
+	}
 	close(_serverFd);
 }
 
@@ -75,7 +77,7 @@ void Server::start() {
 					if (!client)
 						continue;
 					char buffer[4096];
-					int bytes = read(client->fd, buffer, sizeof(buffer));
+					int bytes = read(client->getFd(), buffer, sizeof(buffer));
 					if (bytes == 0) {
 						removeClient(i);
 						continue;
@@ -87,14 +89,14 @@ void Server::start() {
 						}
 					}
 					else {
-						client->buffer.append(buffer, bytes);
+						client->appendToBuffer(buffer, bytes);
 						std::cout << "Buffer size for fd "
-									<< client->fd << ": "
-									<< client->buffer.size() << "\n";
+									<< client->getFd() << ": "
+									<< client->getBuffer().size() << "\n";
 					}
-					if (client->hasCompleteHeader(client->buffer)) {
+					if (client->hasCompleteHeader()) {
 						std::cout << "Full HTTP headers recieved for fd "
-									<< client->fd << "\n";
+									<< client->getFd() << "\n";
 					}
 				}
 			}
@@ -143,7 +145,7 @@ void Server::removeClient(size_t index) {
 
 	// remove from clients vector
 	for (it = _clients.begin(); it != _clients.end(); it++) {
-		if (it->fd == fd) {
+		if (it->getFd() == fd) {
 			_clients.erase(it);
 			break;
 		}
@@ -168,7 +170,7 @@ void Server::setNonBlocking(int fd) {
 
 Client* Server::getClient(int fd) {
 	for (size_t i = 0; i < _clients.size(); i++) {
-		if (_clients[i].fd == fd)
+		if (_clients[i].getFd() == fd)
 			return &_clients[i];
 	}
 	return NULL;
