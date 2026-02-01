@@ -40,7 +40,7 @@ Server::Server(int port) {
 
 Server::~Server() {
 	for (size_t i = 0; i < _clients.size(); i++)
-		close(_clients[i]);
+		close(_clients[i].fd);
 	close(_serverFd);
 }
 
@@ -71,6 +71,9 @@ void Server::start() {
 				// if it is the server fd, acceptClient
 				if (_pollFds[i].fd == _serverFd)
 					acceptClient();
+				else {
+					//read
+				}
 			}
 
 			// clear handled event
@@ -95,7 +98,7 @@ void Server::acceptClient() {
 		return ;
 	}
 	setNonBlocking(client_fd);
-	_clients.push_back(client_fd);
+	_clients.push_back(Client(client_fd));
 
 	// init client poll
 	pollfd clientPoll;
@@ -105,6 +108,26 @@ void Server::acceptClient() {
 	_pollFds.push_back(clientPoll);
 
 	std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
+}
+
+void Server::removeClient(size_t index) {
+	int fd;
+	std::vector<Client>::iterator it;
+
+	fd = _pollFds[index].fd;
+	std::cout << "Client (fd=" << fd << ") disconnected\n";
+	close(fd);
+
+	// remove from clients vector
+	for (it = _clients.begin(); it != _clients.end(); it++) {
+		if (it->fd == fd) {
+			_clients.erase(it);
+			break;
+		}
+	}
+
+	// remove from poll vector
+	_pollFds.erase(_pollFds.begin() + index);
 }
 
 void Server::setNonBlocking(int fd) {
@@ -120,22 +143,10 @@ void Server::setNonBlocking(int fd) {
 	}
 }
 
-void Server::removeClient(size_t index) {
-	int fd;
-	std::vector<int>::iterator it;
-
-	fd = _pollFds[index].fd;
-	std::cout << "Client (fd=" << fd << ") disconnected\n";
-	close(fd);
-
-	// remove from clients vector
-	for (it = _clients.begin(); it != _clients.end(); it++) {
-		if (*it == fd) {
-			_clients.erase(it);
-			break;
-		}
+Client* Server::getClient(int fd) {
+	for (size_t i = 0; i < _clients.size(); i++) {
+		if (_clients[i].fd == fd)
+			return &_clients[i];
 	}
-
-	// remove from poll vector
-	_pollFds.erase(_pollFds.begin() + index);
+	return NULL;
 }
