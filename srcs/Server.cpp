@@ -92,6 +92,10 @@ void Server::start() {
 									<< client->fd << ": "
 									<< client->buffer.size() << "\n";
 					}
+					if (client->hasCompleteHeader(client->buffer)) {
+						std::cout << "Full HTTP headers recieved for fd "
+									<< client->fd << "\n";
+					}
 				}
 			}
 

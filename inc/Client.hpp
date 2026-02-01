@@ -9,4 +9,5 @@ public:
 
 	Client(int fd_);
 	~Client();
+	bool hasCompleteHeader(const std::string& buffer);
 };
