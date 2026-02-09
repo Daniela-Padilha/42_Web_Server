@@ -1,0 +1,27 @@
+#ifndef TESTS_HPP
+#define TESTS_HPP
+
+#include "../inc/HTTPRequest.hpp"
+
+#include <cstring>
+#include <iostream>
+
+void test_http_parser();
+
+bool test_simple_get_request();
+bool test_packet_fragmentation();
+bool test_post_with_body();
+bool test_post_body_in_chunks();
+bool test_invalid_request_line();
+bool test_header_without_colon();
+bool test_multiple_headers();
+bool test_header_value_with_spaces();
+bool test_empty_uri();
+bool test_large_request();
+bool test_different_http_methods();
+bool test_http_versions();
+bool test_uri_with_query_string();
+bool test_byte_by_byte_arrival();
+bool test_case_sensitivity();
+
+#endif
