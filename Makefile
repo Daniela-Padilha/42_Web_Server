@@ -3,7 +3,7 @@ NAME			:= webserver.out
 
 FORMATABLE		= $(HEADERS) $(SRCS)
 
-TEST_RUN		= $(NAME) .conf
+TEST_RUN		= $(NAME)
 
 ########################################################## Objects and Headers #
 HEADERS			:=															\
@@ -12,12 +12,16 @@ HEADERS			:=															\
 	inc/HTTPRequest.hpp														\
 	inc/utils_print.hpp														\
 	inc/tests.hpp															\
+	inc/Client.hpp															\
+	inc/Server.hpp															\
 
 SRCS			:=															\
 	src/main.cpp															\
 	\
 	src/HTTPRequest.cpp														\
 	src/test_http_parser.cpp												\
+	src/Client.cpp															\
+	src/Server.cpp															\
 
 OBJS 			:= $(SRCS:/%.cpp=$(BUILD_DIR)/%.o)
 #SRCS-BONUS		:=
@@ -172,6 +176,10 @@ format: .clang-format
 	    value: lower_case\n\
 	  - key:   readability-identifier-naming.PrivateMemberSuffix\n\
 	    value: '_'\n\
+	  - key: readability-identifier-length.IgnoredParameterNames\n\
+	    value: 'fd'\n\
+	  - key: readability-identifier-length.IgnoredVariableNames\n\
+	    value: 'fd'\n\
 	\n\
 	HeaderFilterRegex: '.*'\n\
 	" > .clang-tidy
@@ -224,7 +232,8 @@ endef
 valgrind: $(NAME)
 	@\
 	echo "$(GRAY)Executing arg:$(COR)	time valgrind ./$(TEST_RUN)"		; \
-	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN) $(VALGRIND_FILTER)
+	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)
+# 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN) $(VALGRIND_FILTER)
 
 
 VALGRIND_CMD = valgrind \
@@ -265,7 +274,7 @@ endef
 
 ######################################################################### Test #
 test: CFLAGS += $(DEBUG_FLAGS)
-test: check-guards clang-check fclean $(NAME) $(DATABASE)
+test: check-guards clang-check fclean $(NAME) 
 	@\
 	echo "\
 	$(COR)$(GRAY)========================================== $(NAME) START\
@@ -279,7 +288,7 @@ test: check-guards clang-check fclean $(NAME) $(DATABASE)
 	make style --silent
 
 
-exe: format fclean $(NAME) $(DATABASE)
+exe: format fclean $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
 	$(TIMED_RUN) ./$(TEST_RUN)
@@ -303,7 +312,7 @@ done
 endef
 
 debug: CFLAGS += $(DEBUG_FLAGS)
-debug: fclean format $(NAME) $(DATABASE)
+debug: fclean format $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
 	$(TIMED_RUN) ./$(TEST_RUN) $(DEBUG_FILTER)
@@ -319,7 +328,7 @@ gprof: fclean $(NAME)
 
 ######################################################################### Line #
 line: CFLAGS += $(DEBUG_FLAGS)
-line: fclean format $(NAME) $(DATABASE)
+line: fclean format $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'					; \
 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN) 2>&1 | while IFS= read -r line; \
