@@ -2,11 +2,21 @@
 #define SERVER_HPP
 
 #include "Client.hpp"
+
+#include "../inc/HTTPRequest.hpp"
+#include "../inc/signals.hpp"
+#include "../inc/utils_print.hpp"
+
 #include <fcntl.h>
 #include <map>
 #include <netinet/in.h> //sockaddr_in
 #include <poll.h>
 #include <vector>
+#include <cerrno>
+#include <cstring>
+#include <unistd.h>
+#include <sstream>
+#include <iostream>
 
 class Server
 {

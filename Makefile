@@ -242,8 +242,6 @@ valgrind: $(NAME)
 	@\
 	echo "$(GRAY)Executing arg:$(COR)	time valgrind ./$(TEST_RUN)"		; \
 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)
-# 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN) $(VALGRIND_FILTER)
-
 
 VALGRIND_CMD = valgrind \
 	--track-fds=yes \
@@ -252,34 +250,6 @@ VALGRIND_CMD = valgrind \
 	--show-leak-kinds=all \
 	--track-origins=yes \
 	--max-stackframe=4200000
-
-define VALGRIND_FILTER
-2>&1 | while IFS= read -r line; do \
-	case "$$line" in \
-		*==DEBUG==*) \
-			printf '$(ORANGE)%-80s $(COR)\n' "$$line" ;; \
-		\
-		*==*[Cc]opyright*) ;; \
-		\
-		*==*freed*--*no*leaks*) \
-			printf '$(BG_GREEN)%-80s $(COR)\n' "$$line" ;; \
-		*==*ERROR*SUMMARY:*0*errors*from*0*contexts*) \
-			printf '$(BG_GREEN)%-80s $(COR)\n' "$$line" ;; \
-		\
-		*==*[Ii]nvalid* | *==*[Uu]ninitialised* | *==*[Cc]onditional* | \
-		*==*[Ll]ost*bytes* | *==*definitely*lost* | *==*indirectly*lost* | \
-		*==*possibly*lost* | *==*still*reachable* | *==*[Mm]ismatch* | \
-		*==*Process*terminating* | \
-		\
-		*Error* | *ERROR*) \
-			printf '$(BG_RED)%-80s $(COR)\n' "$$line" ; sleep 1 ;; \
-		\
-		*==*) printf '$(GREEN)%-80s $(COR)\n' "$$line" ;; \
-		\
-		*) printf "$$line\n" ;;\
-	esac; \
-done
-endef
 
 ######################################################################### Test #
 test: CFLAGS += $(DEBUG_FLAGS)
@@ -307,24 +277,11 @@ run: $(NAME)
 	echo '$(GRAY)Executing arg:$(COR)	./$(TEST_RUN)'					; \
 	./$(TEST_RUN)
 
-define DEBUG_FILTER
-2>&1 | while IFS= read -r line; do \
-	case "$$line" in \
-		*==DEBUG==*) printf '$(ORANGE)%-80s $(COR)\n' "$$line" ;; \
-		\
-		*Error* | *ERROR*) printf '$(BG_RED)%-80s $(COR)\n' "$$line" ; \
-			sleep 1 ;; \
-		\
-		*) printf "$$line\n" ;;\
-	esac; \
-done
-endef
-
 debug: CFLAGS += $(DEBUG_FLAGS)
 debug: fclean format $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
-	$(TIMED_RUN) ./$(TEST_RUN) $(DEBUG_FILTER)
+	$(TIMED_RUN) ./$(TEST_RUN) || echo -n ""
 
 gprof: CFLAGS += $(GPROF_FLAGS)
 gprof: fclean $(NAME)
@@ -334,35 +291,3 @@ gprof: fclean $(NAME)
 	gprof $(NAME) gmon.out > gmon-ignoreme.txt							; \
 	cat gmon-ignoreme.txt												; \
 	rm -f gmon-ignoreme.txt gmon.out
-
-######################################################################### Line #
-line: CFLAGS += $(DEBUG_FLAGS)
-line: fclean format $(NAME) 
-	@\
-	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'					; \
-	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN) 2>&1 | while IFS= read -r line; \
-		do \
-		case "$$line" in \
-			*==DEBUG==*) \
-				printf '$(ORANGE)%-80s $(COR)\n' "$$line" ; sleep 0.01 ;; \
-			\
-			*==*[Cc]opyright*) ;; \
-			\
-			*==*freed*--*no*leaks*) \
-				printf '$(BG_GREEN)%-80s $(COR)\n' "$$line" ; sleep 0.01 ;; \
-			*==*ERROR*SUMMARY:*0*errors*from*0*contexts*) \
-				printf '$(BG_GREEN)%-80s $(COR)\n' "$$line" ; sleep 0.01 ;; \
-			\
-			*==*[Ii]nvalid* | *==*[Uu]ninitialised* | *==*[Cc]onditional* | \
-			*==*[Ll]ost*bytes* | *==*definitely*lost* | *==*indirectly*lost* | \
-			*==*possibly*lost* | *==*still*reachable* | *==*[Mm]ismatch* | \
-			*==*Process*terminating* | \
-			\
-			*Error* | *ERROR*) \
-				printf '$(BG_RED)%-80s $(COR)\n' "$$line" ; sleep 1 ;; \
-			\
-			*==*) printf '$(GREEN)%-80s $(COR)\n' "$$line" ; sleep 0.01 ;; \
-			\
-			*) printf "$$line\n" ; sleep 0.042 ;;\
-		esac; \
-	done

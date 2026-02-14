@@ -41,7 +41,7 @@ bool HTTPRequest::parse(const std::string &buffer)
 			{
 				state_ = PARSSING_COMPLETE_;
 			}
-			dprint("Headers parsed successfully");
+			dprint("HTTPRequest: Headers parsed successfully");
 		}
 		else if (state_ == PARSSING_BODY_)
 		{

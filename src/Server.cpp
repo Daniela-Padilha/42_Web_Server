@@ -1,5 +1,4 @@
 #include "../inc/Server.hpp"
-#include "../inc/webserver.hpp"
 
 Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 {
@@ -76,7 +75,7 @@ void Server::start()
 {
 	std::cout << "Server is listening... \n";
 	// event loop
-	while (true)
+	while (g_looping)
 	{
 		int ready = 0;
 
@@ -132,17 +131,61 @@ void Server::start()
 					else
 					{
 						client->append_to_buffer(buffer, bytes);
-						std::cout << "Buffer size for fd " << client->get_fd()
-								  << ": " << client->get_buffer().size()
-								  << "\n";
+						dprint("Server: Buffer size for fd "
+							   << client->get_fd() << ": "
+							   << client->get_buffer().size());
 					}
+
 					if (client->has_complete_header())
 					{
-						std::cout << "Full HTTP headers received for fd "
-								  << client->get_fd() << "\n";
-						// later: pass buffer to parser
+						dprint("Server: Full HTTP headers received for fd "
+							   << client->get_fd());
+
+						HTTPRequest req;
+						req.parse(client->get_buffer());
+
+						// Create a simple response
+						std::string body = "<html><body><h1>Hello RAD team "
+										   ":p</h1></body></html>";
+						std::ostringstream str_stream;
+						str_stream << "HTTP/1.1 200 OK\r\n"
+								   << "Content-Type: text/html\r\n"
+								   << "Content-Length: " << body.length()
+								   << "\r\n"
+								   << "\r\n"
+								   << body;
+
+						client->set_response(str_stream.str());
+						pollFds_[i].events |= POLLOUT;
 						client->clear_buffer();
 					}
+				}
+			}
+
+			// when client is ready to write
+			if ((pollFds_[i].revents & POLLOUT) != 0)
+			{
+				Client *client = get_client(pollFds_[i].fd);
+				if (client && !client->get_response().empty())
+				{
+					int sent = send(client->get_fd(),
+									client->get_response().c_str(),
+									client->get_response().length(),
+									0);
+					if (sent < 0)
+					{
+						eprint("Server: Error sending data to client");
+					}
+					else
+					{
+						dprint("Server: Sent " << sent << " bytes to client");
+					}
+					client->clear_response();
+					pollFds_[i].events &= ~POLLOUT;
+
+					// For now, close connection after sending response
+					remove_client(i);
+					continue;
 				}
 			}
 

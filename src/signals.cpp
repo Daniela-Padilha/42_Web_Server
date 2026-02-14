@@ -1,9 +1,10 @@
 #include "../inc/signals.hpp"
 
-static void handle_signals(int sig);
+volatile sig_atomic_t g_looping = 1;
 
+static void			  handle_signals(int sig);
 
-void init_signals()
+void				  init_signals()
 {
 	struct sigaction s_a;
 	s_a.sa_handler = handle_signals;
