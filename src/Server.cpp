@@ -7,7 +7,8 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	// SOCK_STREAM (socket type using TCP/IP)
 	if (serverFd_ < 0)
 	{
-		strerror(errno);
+		std::cerr << "Error: socket creation failed: " << strerror(errno)
+				  << std::endl;
 		return;
 	}
 
@@ -19,15 +20,17 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	// choose address + port that server will use
 	if (bind(serverFd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
 	{
-		strerror(errno);
+		std::cerr << "Error: bind failed: " << strerror(errno) << std::endl;
 		close(serverFd_);
+		serverFd_ = -1;
 		return;
 	}
 	// get server ready for incoming connection attempts
 	if (listen(serverFd_, 10) < 0)
 	{
-		strerror(errno);
+		std::cerr << "Error: listen failed: " << strerror(errno) << std::endl;
 		close(serverFd_);
+		serverFd_ = -1;
 		return;
 	}
 
@@ -68,11 +71,17 @@ Server::~Server()
 	{
 		close(it->first);
 	}
-	close(serverFd_);
+	if (serverFd_ != -1)
+	{
+		close(serverFd_);
+	}
 }
 
 void Server::start()
 {
+	if (serverFd_ == -1)
+		return;
+
 	std::cout << "Server is listening... \n";
 	// event loop
 	while (g_looping)
@@ -83,7 +92,9 @@ void Server::start()
 		ready = poll(&pollFds_[0], pollFds_.size(), -1);
 		if (ready < 0)
 		{
-			strerror(errno);
+			if (errno == EINTR)
+				continue;
+			std::cerr << "poll: " << strerror(errno) << std::endl;
 			break;
 		}
 		// check which fd had an event, if is ready for reading
@@ -111,6 +122,7 @@ void Server::start()
 					Client *client = get_client(pollFds_[i].fd);
 					if (client == 0)
 					{
+						i++;
 						continue;
 					}
 					char buffer[4096];
@@ -210,7 +222,7 @@ void Server::accept_client()
 	{
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
 		{
-			strerror(errno);
+			std::cerr << "accept: " << strerror(errno) << std::endl;
 		}
 		return;
 	}
@@ -248,13 +260,13 @@ void Server::set_non_blocking(int fd)
 	int flags = fcntl(fd, F_GETFL);
 	if (flags < 0)
 	{
-		strerror(errno);
+		std::cerr << "fcntl F_GETFL: " << strerror(errno) << std::endl;
 		return;
 	}
 	// change fd status flags
 	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
 	{
-		strerror(errno);
+		std::cerr << "fcntl F_SETFL: " << strerror(errno) << std::endl;
 	}
 }
 

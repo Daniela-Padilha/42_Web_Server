@@ -7,16 +7,16 @@
 #include "../inc/signals.hpp"
 #include "../inc/utils_print.hpp"
 
+#include <cerrno>
+#include <cstring>
 #include <fcntl.h>
+#include <iostream>
 #include <map>
 #include <netinet/in.h> //sockaddr_in
 #include <poll.h>
-#include <vector>
-#include <cerrno>
-#include <cstring>
-#include <unistd.h>
 #include <sstream>
-#include <iostream>
+#include <unistd.h>
+#include <vector>
 
 class Server
 {
