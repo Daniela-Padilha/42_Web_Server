@@ -11,6 +11,8 @@ class Client
 
   public:
 	Client(int fd);
+	Client(const Client &src);
+	Client &operator=(const Client &src);
 	~Client();
 
 	int				   get_fd() const;

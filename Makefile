@@ -14,6 +14,7 @@ HEADERS			:=															\
 	inc/tests.hpp															\
 	inc/Client.hpp															\
 	inc/Server.hpp															\
+	inc/signals.hpp															\
 
 SRCS			:=															\
 	src/main.cpp															\
@@ -22,6 +23,7 @@ SRCS			:=															\
 	src/test_http_parser.cpp												\
 	src/Client.cpp															\
 	src/Server.cpp															\
+	src/signals.cpp															\
 
 OBJS 			:= $(SRCS:/%.cpp=$(BUILD_DIR)/%.o)
 #SRCS-BONUS		:=
@@ -191,6 +193,13 @@ style: .clang-format .clang-tidy
 	-- $(CFLAGS)														; \
 	make check-guards --silent
 # 	rm -f .clang-format .clang-tidy										; \
+
+fix-style: .clang-tidy format
+	@\
+	clang-tidy --quiet --fix --use-color --extra-arg=-std=c++98 $(FORMATABLE) -- $(CFLAGS) -DHARL=0 ; \
+	make check-guards --silent ;\
+	make format --silent
+# 	rm -f .clang-format .clang-tidy
 
 check-guards:
 	@fail=0; \

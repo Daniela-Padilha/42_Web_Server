@@ -16,13 +16,16 @@ class Server
 	std::map<int, Client> clients_;
 	std::vector<pollfd>	  pollFds_;
 
-	void				  set_non_blocking(int fd);
+	static void			  set_non_blocking(int fd);
 	void				  remove_client(size_t index);
 	Client				 *get_client(int fd);
 
   public:
 	Server(int port);
+	Server(const Server &src);
+	Server &operator=(const Server &src);
 	~Server();
+
 	void start();
 	void accept_client();
 };

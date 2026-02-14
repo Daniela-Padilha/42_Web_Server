@@ -1,13 +1,11 @@
 #include "../inc/Server.hpp"
 #include "../inc/webserver.hpp"
 
-Server::Server(int port)
+Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 {
 	// create server socket
-	serverFd_ = socket(AF_INET,
-					   SOCK_STREAM,
-					   0); // AF_INET (address family for IPv4),
-						   // SOCK_STREAM (socket type using TCP/IP)
+	// AF_INET (address family for IPv4),
+	// SOCK_STREAM (socket type using TCP/IP)
 	if (serverFd_ < 0)
 	{
 		strerror(errno);
@@ -44,11 +42,33 @@ Server::Server(int port)
 	set_non_blocking(serverFd_);
 }
 
+Server::Server(const Server &src) :
+	serverFd_(src.serverFd_),
+	addr_(src.addr_),
+	clients_(src.clients_),
+	pollFds_(src.pollFds_)
+{
+}
+
+Server &Server::operator=(const Server &src)
+{
+	if (this != &src)
+	{
+		this->serverFd_ = src.serverFd_;
+		this->addr_		= src.addr_;
+		this->clients_	= src.clients_;
+		this->pollFds_	= src.pollFds_;
+	}
+	return *this;
+}
+
 Server::~Server()
 {
 	std::map<int, Client>::iterator it;
 	for (it = clients_.begin(); it != clients_.end(); it++)
+	{
 		close(it->first);
+	}
 	close(serverFd_);
 }
 
@@ -56,9 +76,9 @@ void Server::start()
 {
 	std::cout << "Server is listening... \n";
 	// event loop
-	while (1)
+	while (true)
 	{
-		int ready;
+		int ready = 0;
 
 		// setup poll to sleep until an event occurs
 		ready = poll(&pollFds_[0], pollFds_.size(), -1);
@@ -71,7 +91,7 @@ void Server::start()
 		for (size_t i = 0; i < pollFds_.size();)
 		{
 			// when client disconnects
-			if (pollFds_[i].revents & (POLLHUP | POLLERR | POLLNVAL))
+			if ((pollFds_[i].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
 			{
 				if (pollFds_[i].fd != serverFd_)
 				{
@@ -81,7 +101,7 @@ void Server::start()
 			}
 
 			// when client tries to connect
-			if (pollFds_[i].revents & POLLIN)
+			if ((pollFds_[i].revents & POLLIN) != 0)
 			{
 				if (pollFds_[i].fd == serverFd_)
 				{
@@ -90,8 +110,10 @@ void Server::start()
 				else
 				{
 					Client *client = get_client(pollFds_[i].fd);
-					if (!client)
+					if (client == 0)
+					{
 						continue;
+					}
 					char buffer[4096];
 					int	 bytes = read(client->get_fd(), buffer, sizeof(buffer));
 					if (bytes == 0)
@@ -99,7 +121,7 @@ void Server::start()
 						remove_client(i);
 						continue;
 					}
-					else if (bytes < 0)
+					if (bytes < 0)
 					{
 						if (errno != EAGAIN && errno != EWOULDBLOCK)
 						{

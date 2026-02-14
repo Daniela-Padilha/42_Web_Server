@@ -1,11 +1,7 @@
 #include "../inc/signals.hpp"
 
-static void handle_signals(int sig)
-{
-	(void) sig;
-	std::cout << "  Signal received. Exiting...\n";
-	g_looping = 0;
-}
+static void handle_signals(int sig);
+
 
 void init_signals()
 {
@@ -17,4 +13,11 @@ void init_signals()
 	sigaction(SIGINT, &s_a, NULL);
 	sigaction(SIGQUIT, &s_a, NULL);
 	sigaction(SIGTERM, &s_a, NULL);
+}
+
+static void handle_signals(int sig)
+{
+	(void) sig;
+	std::cout << "  Signal received. Exiting...\n";
+	g_looping = 0;
 }
