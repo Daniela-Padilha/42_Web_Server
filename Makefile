@@ -10,6 +10,8 @@ HEADERS			:=															\
 	inc/webserver.hpp														\
 	\
 	inc/HTTPRequest.hpp														\
+	inc/HTTPResponse.hpp													\
+	inc/HTTPHandler.hpp														\
 	inc/utils_print.hpp														\
 	inc/tests.hpp															\
 	inc/Client.hpp															\
@@ -20,10 +22,13 @@ SRCS			:=															\
 	src/main.cpp															\
 	\
 	src/HTTPRequest.cpp														\
+	src/HTTPResponse.cpp													\
+	src/HTTPHandler.cpp														\
 	src/test_http_parser.cpp												\
 	src/Client.cpp															\
 	src/Server.cpp															\
 	src/signals.cpp															\
+
 
 OBJS 			:= $(SRCS:/%.cpp=$(BUILD_DIR)/%.o)
 #SRCS-BONUS		:=
@@ -55,7 +60,7 @@ $(NAME): $(OBJS)
 	echo "$(GRAY)File compiled:$(COR)	./$(NAME)"
 #	echo "$(GRAY)Linking flags:$(COR)	$(INCLUDES)"					; \
 
-$(BUILD_DIR)/%.o: /%.cpp
+$(BUILD_DIR)/%.o: src/%.cpp
 	@mkdir -p $(dir $@)
 	@\
 	$(CC) $(INCLUDES) $(CFLAGS) -c $< -o $@								&&	\
@@ -232,7 +237,10 @@ BG_GREEN	:= \033[1;30m\033[102m
 BG_RED		:= \033[1;30m\033[101m
 ######################################################################### Time #
 time: $(NAME)
-	@$(TIMED_RUN) ./$(TEST_RUN)
+	@\
+	trap '' INT TERM														; \
+	$(TIMED_RUN) ./$(TEST_RUN)												; \
+	trap - INT TERM
 
 define TIMED_RUN
 time --quiet --format "==CRONO== Total time: %E "
@@ -241,7 +249,9 @@ endef
 valgrind: $(NAME)
 	@\
 	echo "$(GRAY)Executing arg:$(COR)	time valgrind ./$(TEST_RUN)"		; \
-	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)
+	trap '' INT TERM														; \
+	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)								; \
+	trap - INT TERM
 
 VALGRIND_CMD = valgrind \
 	--track-fds=yes \
@@ -266,28 +276,79 @@ test: check-guards clang-check fclean $(NAME)
 	$(COR)RETURN VALUE: $$?"											; \
 	make style --silent
 
+upload-delete: $(NAME)
+	@\
+	echo "$(GRAY)Starting Integration Check...$(COR)"					; \
+	mkdir -p uploads													; \
+	./$(NAME) > /dev/null 2>&1 & echo $$! > server.pid					; \
+	sleep 1																; \
+	echo "$(GRAY)Creating test file...$(COR)"							; \
+	echo "This is a test file" > test_upload.txt						; \
+	echo "$(GRAY)Uploading file...$(COR)"								; \
+	if curl -s -o /dev/null -w "%{http_code}" -X POST -F "file=@test_upload.txt" http://localhost:8080/ | grep -q "201"; then \
+		echo "$(GREEN)Upload successful.$(COR)"							; \
+	else \
+		echo "$(ORANGE)Upload failed$(COR)"								; \
+		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
+		exit 1															; \
+	fi																	; \
+	if [ -f uploads/test_upload.txt ]; then \
+		echo "$(GREEN)File verified on server.$(COR)"					; \
+	else \
+		echo "$(ORANGE)File not found in uploads/$(COR)"				; \
+		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
+		exit 1															; \
+	fi																	; \
+	echo "$(GRAY)Waiting a moment...$(COR)"								; \
+	sleep 7																; \
+	echo "$(GRAY)Deleting file...$(COR)"								; \
+	if curl --path-as-is -s -o /dev/null -w "%{http_code}" -X DELETE http://localhost:8080/../uploads/test_upload.txt | grep -q "200"; then \
+		echo "$(GREEN)Delete successful.$(COR)"							; \
+	else \
+		echo "$(ORANGE)Delete failed$(COR)"								; \
+		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
+		exit 1															; \
+	fi																	; \
+	if [ ! -f uploads/test_upload.txt ]; then \
+		echo "$(GREEN)File deletion verified.$(COR)"					; \
+	else \
+		echo "$(ORANGE)File still exists in uploads/$(COR)"				; \
+		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
+		exit 1															; \
+	fi																	; \
+	echo "$(GREEN)Integration Check Passed!$(COR)"						; \
+	kill $$(cat server.pid) && rm -f server.pid test_upload.txt
 
 exe: format fclean $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
-	$(TIMED_RUN) ./$(TEST_RUN)
+	trap '' INT TERM													; \
+	$(TIMED_RUN) ./$(TEST_RUN)											; \
+	trap - INT TERM
 
 run: $(NAME)
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	./$(TEST_RUN)'					; \
-	./$(TEST_RUN)
+	trap '' INT TERM													; \
+	./$(TEST_RUN)														; \
+	trap - INT TERM
 
 debug: CFLAGS += $(DEBUG_FLAGS)
 debug: fclean format $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
-	$(TIMED_RUN) ./$(TEST_RUN) || echo -n ""
+	trap '' INT TERM													; \
+	$(TIMED_RUN) ./$(TEST_RUN) 											; \
+	trap - INT TERM
 
 gprof: CFLAGS += $(GPROF_FLAGS)
 gprof: fclean $(NAME)
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	gprof ./$(TEST_RUN)'			; \
+	trap '' INT TERM													; \
 	./$(TEST_RUN)														; \
+	trap - INT TERM
 	gprof $(NAME) gmon.out > gmon-ignoreme.txt							; \
 	cat gmon-ignoreme.txt												; \
 	rm -f gmon-ignoreme.txt gmon.out
+

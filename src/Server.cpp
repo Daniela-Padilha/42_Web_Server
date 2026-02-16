@@ -1,5 +1,8 @@
 #include "../inc/Server.hpp"
 
+#include "../inc/HTTPHandler.hpp"
+#include "../inc/HTTPResponse.hpp"
+
 Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 {
 	// create server socket
@@ -8,7 +11,7 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	if (serverFd_ < 0)
 	{
 		std::cerr << "Error: socket creation failed: " << strerror(errno)
-				  << std::endl;
+				  << '\n';
 		return;
 	}
 
@@ -20,7 +23,7 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	// choose address + port that server will use
 	if (bind(serverFd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
 	{
-		std::cerr << "Error: bind failed: " << strerror(errno) << std::endl;
+		std::cerr << "Error: bind failed: " << strerror(errno) << '\n';
 		close(serverFd_);
 		serverFd_ = -1;
 		return;
@@ -28,7 +31,7 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	// get server ready for incoming connection attempts
 	if (listen(serverFd_, 10) < 0)
 	{
-		std::cerr << "Error: listen failed: " << strerror(errno) << std::endl;
+		std::cerr << "Error: listen failed: " << strerror(errno) << '\n';
 		close(serverFd_);
 		serverFd_ = -1;
 		return;
@@ -80,11 +83,13 @@ Server::~Server()
 void Server::start()
 {
 	if (serverFd_ == -1)
+	{
 		return;
+	}
 
 	std::cout << "Server is listening... \n";
 	// event loop
-	while (g_looping)
+	while (g_looping != 0)
 	{
 		int ready = 0;
 
@@ -93,8 +98,10 @@ void Server::start()
 		if (ready < 0)
 		{
 			if (errno == EINTR)
+			{
 				continue;
-			std::cerr << "poll: " << strerror(errno) << std::endl;
+			}
+			std::cerr << "poll: " << strerror(errno) << '\n';
 			break;
 		}
 		// check which fd had an event, if is ready for reading
@@ -156,18 +163,10 @@ void Server::start()
 						HTTPRequest req;
 						req.parse(client->get_buffer());
 
-						// Create a simple response
-						std::string body = "<html><body><h1>Hello RAD team "
-										   ":p</h1></body></html>";
-						std::ostringstream str_stream;
-						str_stream << "HTTP/1.1 200 OK\r\n"
-								   << "Content-Type: text/html\r\n"
-								   << "Content-Length: " << body.length()
-								   << "\r\n"
-								   << "\r\n"
-								   << body;
+						HTTPHandler	 handler;
+						HTTPResponse response = handler.handle_request(req);
 
-						client->set_response(str_stream.str());
+						client->set_response(response.to_string());
 						pollFds_[i].events |= POLLOUT;
 						client->clear_buffer();
 					}
@@ -178,7 +177,7 @@ void Server::start()
 			if ((pollFds_[i].revents & POLLOUT) != 0)
 			{
 				Client *client = get_client(pollFds_[i].fd);
-				if (client && !client->get_response().empty())
+				if ((client != 0) && !client->get_response().empty())
 				{
 					int sent = send(client->get_fd(),
 									client->get_response().c_str(),
@@ -222,7 +221,7 @@ void Server::accept_client()
 	{
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
 		{
-			std::cerr << "accept: " << strerror(errno) << std::endl;
+			std::cerr << "accept: " << strerror(errno) << '\n';
 		}
 		return;
 	}
@@ -260,13 +259,13 @@ void Server::set_non_blocking(int fd)
 	int flags = fcntl(fd, F_GETFL);
 	if (flags < 0)
 	{
-		std::cerr << "fcntl F_GETFL: " << strerror(errno) << std::endl;
+		std::cerr << "fcntl F_GETFL: " << strerror(errno) << '\n';
 		return;
 	}
 	// change fd status flags
 	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
 	{
-		std::cerr << "fcntl F_SETFL: " << strerror(errno) << std::endl;
+		std::cerr << "fcntl F_SETFL: " << strerror(errno) << '\n';
 	}
 }
 
