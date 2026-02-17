@@ -280,12 +280,13 @@ upload-delete: $(NAME)
 	@\
 	echo "$(GRAY)Starting Integration Check...$(COR)"					; \
 	mkdir -p uploads													; \
-	./$(NAME) > /dev/null 2>&1 & echo $$! > server.pid					; \
-	sleep 1																; \
+	./$(NAME)  & echo $$! > server.pid					; \
+	sleep 4																; \
 	echo "$(GRAY)Creating test file...$(COR)"							; \
 	echo "This is a test file" > test_upload.txt						; \
 	echo "$(GRAY)Uploading file...$(COR)"								; \
-	if curl -s -o /dev/null -w "%{http_code}" -X POST -F "file=@test_upload.txt" http://localhost:8080/ | grep -q "201"; then \
+	if curl -s -o /dev/null -w "%{http_code}" -X POST -F \
+		"file=@test_upload.txt" http://localhost:8080/ | grep -q "201"; then \
 		echo "$(GREEN)Upload successful.$(COR)"							; \
 	else \
 		echo "$(ORANGE)Upload failed$(COR)"								; \
@@ -302,7 +303,8 @@ upload-delete: $(NAME)
 	echo "$(GRAY)Waiting a moment...$(COR)"								; \
 	sleep 7																; \
 	echo "$(GRAY)Deleting file...$(COR)"								; \
-	if curl --path-as-is -s -o /dev/null -w "%{http_code}" -X DELETE http://localhost:8080/../uploads/test_upload.txt | grep -q "200"; then \
+	if curl --path-as-is -s -o /dev/null -w "%{http_code}" -X DELETE \
+		http://localhost:8080/../uploads/test_upload.txt | grep -q "200"; then \
 		echo "$(GREEN)Delete successful.$(COR)"							; \
 	else \
 		echo "$(ORANGE)Delete failed$(COR)"								; \

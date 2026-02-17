@@ -19,6 +19,13 @@ void test_http_parser()
 	test_uri_with_query_string();
 	test_byte_by_byte_arrival();
 	test_case_sensitivity();
+	test_chunked_single_chunk();
+	test_chunked_multiple_chunks();
+	test_chunked_fragmented_arrival();
+	test_chunked_with_extensions();
+	test_chunked_with_trailers();
+	test_chunked_invalid_hex();
+	test_chunked_overrides_content_length();
 }
 
 bool test_simple_get_request()
@@ -690,6 +697,316 @@ bool test_case_sensitivity()
 	{
 		std::cout << BG_RED << " KO " << RESET
 				  << " test_case_sensitivity failed\n";
+	}
+	return all_tests_passed;
+}
+
+////////////////////////////////////////////////////// Chunked encoding tests //
+bool test_chunked_single_chunk()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Single chunk of 5 bytes: "Hello"
+	const char *request = "POST /upload HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "5\r\n"
+						  "Hello\r\n"
+						  "0\r\n"
+						  "\r\n";
+
+	if (!req.parse(request))
+	{
+		std::cout << "test failed: chunked request should be complete\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "Hello")
+	{
+		std::cout << "test failed: body should be 'Hello', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+	if (req.is_error())
+	{
+		std::cout << "test failed: should not be in error state\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_single_chunk passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_single_chunk failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_multiple_chunks()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Three chunks: "Hello" (5) + " " (1) + "World!" (6) = "Hello World!"
+	const char *request = "POST /data HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "5\r\n"
+						  "Hello\r\n"
+						  "1\r\n"
+						  " \r\n"
+						  "6\r\n"
+						  "World!\r\n"
+						  "0\r\n"
+						  "\r\n";
+
+	if (!req.parse(request))
+	{
+		std::cout << "test failed: chunked request should be complete\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "Hello World!")
+	{
+		std::cout << "test failed: body should be 'Hello World!', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_multiple_chunks passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_multiple_chunks failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_fragmented_arrival()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Simulate data arriving in fragments across multiple recv() calls
+	const char *part1 = "POST /upload HTTP/1.1\r\n"
+						"Host: localhost\r\n"
+						"Transfer-Encoding: chunked\r\n"
+						"\r\n"
+						"5\r\n"
+						"Hel";
+
+	const char *part2 = "lo\r\n"
+						"8\r\n"
+						" Wo";
+
+	const char *part3 = "rld!\n\r\n"
+						"0\r\n"
+						"\r\n";
+
+	if (req.parse(part1))
+	{
+		std::cout << "test failed: part1 should be incomplete\n";
+		all_tests_passed = false;
+	}
+	if (req.parse(part2))
+	{
+		std::cout << "test failed: part2 should be incomplete\n";
+		all_tests_passed = false;
+	}
+	if (!req.parse(part3))
+	{
+		std::cout << "test failed: part3 should complete the request\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "Hello World!\n")
+	{
+		std::cout << "test failed: body should be 'Hello World!\\n', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_fragmented_arrival passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_fragmented_arrival failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_with_extensions()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Chunk size line with extensions (;name=value) that must be ignored
+	const char *request = "POST /data HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "a;ext=val\r\n"
+						  "0123456789\r\n"
+						  "0\r\n"
+						  "\r\n";
+
+	if (!req.parse(request))
+	{
+		std::cout << "test failed: chunked with extensions should complete\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "0123456789")
+	{
+		std::cout << "test failed: body should be '0123456789', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_with_extensions passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_with_extensions failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_with_trailers()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Trailers after the final 0-chunk should be consumed and ignored
+	const char *request = "POST /data HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "4\r\n"
+						  "Wiki\r\n"
+						  "5\r\n"
+						  "pedia\r\n"
+						  "0\r\n"
+						  "Expires: Wed, 21 Oct 2015 07:28:00 GMT\r\n"
+						  "\r\n";
+
+	if (!req.parse(request))
+	{
+		std::cout << "test failed: chunked with trailers should complete\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "Wikipedia")
+	{
+		std::cout << "test failed: body should be 'Wikipedia', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_with_trailers passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_with_trailers failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_invalid_hex()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// "XZ" is not valid hex -> should trigger error
+	const char *request = "POST /data HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "XZ\r\n"
+						  "ab\r\n"
+						  "0\r\n"
+						  "\r\n";
+
+	if (req.parse(request))
+	{
+		std::cout << "test failed: invalid hex should not complete\n";
+		all_tests_passed = false;
+	}
+	if (!req.is_error())
+	{
+		std::cout << "test failed: invalid hex should trigger error state\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_invalid_hex passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_invalid_hex failed\n";
+	}
+	return all_tests_passed;
+}
+
+bool test_chunked_overrides_content_length()
+{
+	HTTPRequest req;
+	bool		all_tests_passed = true;
+
+	// Both Content-Length and Transfer-Encoding present:
+	// chunked must take precedence (RFC 7230 Section 3.3.3)
+	const char *request = "POST /data HTTP/1.1\r\n"
+						  "Host: localhost\r\n"
+						  "Content-Length: 999\r\n"
+						  "Transfer-Encoding: chunked\r\n"
+						  "\r\n"
+						  "3\r\n"
+						  "abc\r\n"
+						  "0\r\n"
+						  "\r\n";
+
+	if (!req.parse(request))
+	{
+		std::cout << "test failed: chunked should override content-length\n";
+		all_tests_passed = false;
+	}
+	if (req.get_body() != "abc")
+	{
+		std::cout << "test failed: body should be 'abc', got '"
+				  << req.get_body() << "'\n";
+		all_tests_passed = false;
+	}
+
+	if (all_tests_passed)
+	{
+		std::cout << BG_GREEN << " OK " << RESET
+				  << " test_chunked_overrides_content_length passed\n";
+	}
+	else
+	{
+		std::cout << BG_RED << " KO " << RESET
+				  << " test_chunked_overrides_content_length failed\n";
 	}
 	return all_tests_passed;
 }

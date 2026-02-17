@@ -23,7 +23,20 @@ class HTTPRequest
 		PARSSING_ERROR_
 	};
 
-	ParseState						   state_;
+	ParseState state_;
+
+	///////////////////////////////////////// Chunked transfer encoding state //
+	enum ChunkedState
+	{
+		CHUNK_SIZE_,
+		CHUNK_DATA_,
+		CHUNK_DATA_CRLF_,
+		CHUNK_TRAILERS_
+	};
+
+	ChunkedState					   chunked_state_;
+	size_t							   chunk_remaining_;
+	bool							   is_chunked_;
 
 	/////////////////////////////////////////////////////////// Request parts //
 	std::string						   method_;
@@ -39,6 +52,7 @@ class HTTPRequest
 	bool							   parse_headers();
 	bool							   has_body() const;
 	bool							   parse_body();
+	bool							   parse_chunked_body();
 
   public:
 	///////////////////////////////////////////////// Canonical Orthodox Form //

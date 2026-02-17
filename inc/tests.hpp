@@ -23,5 +23,12 @@ bool test_http_versions();
 bool test_uri_with_query_string();
 bool test_byte_by_byte_arrival();
 bool test_case_sensitivity();
+bool test_chunked_single_chunk();
+bool test_chunked_multiple_chunks();
+bool test_chunked_fragmented_arrival();
+bool test_chunked_with_extensions();
+bool test_chunked_with_trailers();
+bool test_chunked_invalid_hex();
+bool test_chunked_overrides_content_length();
 
 #endif

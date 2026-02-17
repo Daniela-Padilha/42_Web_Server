@@ -27,6 +27,7 @@ class Server
 	std::vector<pollfd>	  pollFds_;
 
 	static void			  set_non_blocking(int fd);
+	static void			  set_reuse_addr(int fd);
 	void				  remove_client(size_t index);
 	Client				 *get_client(int fd);
 

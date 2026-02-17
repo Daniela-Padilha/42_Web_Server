@@ -20,6 +20,8 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	addr_.sin_addr.s_addr = INADDR_ANY;	 // IP address (0.0.0.0)
 	addr_.sin_port		  = htons(port); // port nbr in network byte order
 
+	set_reuse_addr(serverFd_);
+
 	// choose address + port that server will use
 	if (bind(serverFd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
 	{
@@ -161,14 +163,26 @@ void Server::start()
 							   << client->get_fd());
 
 						HTTPRequest req;
-						req.parse(client->get_buffer());
+						bool		complete = req.parse(client->get_buffer());
 
-						HTTPHandler	 handler;
-						HTTPResponse response = handler.handle_request(req);
-
-						client->set_response(response.to_string());
-						pollFds_[i].events |= POLLOUT;
-						client->clear_buffer();
+						if (req.is_error())
+						{
+							HTTPResponse response = HTTPResponse::error_400();
+							client->set_response(response.to_string());
+							pollFds_[i].events |= POLLOUT;
+							client->clear_buffer();
+						}
+						else if (complete)
+						{
+							HTTPHandler	 handler;
+							HTTPResponse response
+								= HTTPHandler::handle_request(req);
+							client->set_response(response.to_string());
+							pollFds_[i].events |= POLLOUT;
+							client->clear_buffer();
+						}
+						// else: body not fully received yet — keep buffer,
+						// wait for more data on next poll() cycle
 					}
 				}
 			}
@@ -266,6 +280,17 @@ void Server::set_non_blocking(int fd)
 	if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
 	{
 		std::cerr << "fcntl F_SETFL: " << strerror(errno) << '\n';
+	}
+}
+
+// allow immediate reuse of address/port after server shutdown
+void Server::set_reuse_addr(int fd)
+{
+	int opt = 1;
+	if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+	{
+		std::cerr << "Error: setsockopt SO_REUSEADDR failed: "
+				  << strerror(errno) << '\n';
 	}
 }
 
