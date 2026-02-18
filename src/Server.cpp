@@ -114,123 +114,143 @@ void Server::start()
 			std::cerr << "poll: " << strerror(errno) << '\n';
 			break;
 		}
-		// check which fd had an event, if is ready for reading
-		for (size_t i = 0; i < poll_fds_.size();)
+		// check which fd had an event
+		for (size_t idx = 0; idx < poll_fds_.size();)
 		{
-			// when client disconnects
-			if ((poll_fds_[i].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
+			if (handle_poll_errors(idx))
 			{
-				if (poll_fds_[i].fd != server_fd_)
-				{
-					remove_client(i);
-					continue;
-				}
+				continue;
 			}
-
-			// when client tries to connect
-			if ((poll_fds_[i].revents & POLLIN) != 0)
+			if (handle_poll_input(idx))
 			{
-				if (poll_fds_[i].fd == server_fd_)
-				{
-					accept_client();
-				}
-				else
-				{
-					Client *client = get_client(poll_fds_[i].fd);
-					if (client == 0)
-					{
-						i++;
-						continue;
-					}
-					char buffer[READ_BUFFER_SIZE];
-					int	 bytes = read(client->get_fd(), buffer, sizeof(buffer));
-					if (bytes == 0)
-					{
-						remove_client(i);
-						continue;
-					}
-					if (bytes < 0)
-					{
-						if (errno != EAGAIN && errno != EWOULDBLOCK)
-						{
-							remove_client(i);
-							continue;
-						}
-					}
-					else
-					{
-						client->append_to_buffer(buffer, bytes);
-						dprint("Server: Buffer size for fd "
-							   << client->get_fd() << ": "
-							   << client->get_buffer().size());
-					}
-
-					if (client->has_complete_header())
-					{
-						dprint("Server: Full HTTP headers received for fd "
-							   << client->get_fd());
-
-						HTTPRequest req;
-						bool		complete = req.parse(client->get_buffer());
-
-						if (req.is_error())
-						{
-							HTTPResponse response = HTTPResponse::error_400(
-								HTTPHandler::get_error_page(400));
-							client->set_response(response.to_string());
-							poll_fds_[i].events |= POLLOUT;
-							client->clear_buffer();
-						}
-						else if (complete)
-						{
-							const RouteConfig *route
-								= match_route(req.get_request_target());
-							HTTPResponse response
-								= HTTPHandler::handle_request(req,
-															  route,
-															  config_);
-							client->set_response(response.to_string());
-							poll_fds_[i].events |= POLLOUT;
-							client->clear_buffer();
-						}
-						// else: body not fully received yet — keep buffer,
-						// wait for more data on next poll() cycle
-					}
-				}
+				continue;
 			}
-
-			// when client is ready to write
-			if ((poll_fds_[i].revents & POLLOUT) != 0)
+			if (handle_poll_output(idx))
 			{
-				Client *client = get_client(poll_fds_[i].fd);
-				if ((client != 0) && !client->get_response().empty())
-				{
-					int sent = send(client->get_fd(),
-									client->get_response().c_str(),
-									client->get_response().length(),
-									0);
-					if (sent < 0)
-					{
-						eprint("Server: Error sending data to client");
-					}
-					else
-					{
-						dprint("Server: Sent " << sent << " bytes to client");
-					}
-					client->clear_response();
-					poll_fds_[i].events &= ~POLLOUT;
-
-					// For now, close connection after sending response
-					remove_client(i);
-					continue;
-				}
+				continue;
 			}
-
 			// clear handled event
-			poll_fds_[i].revents = 0;
-			i++;
+			poll_fds_[idx].revents = 0;
+			idx++;
 		}
 	}
+}
+
+bool Server::handle_poll_errors(size_t &idx)
+{
+	if ((poll_fds_[idx].revents & (POLLHUP | POLLERR | POLLNVAL)) == 0)
+	{
+		return false;
+	}
+	if (poll_fds_[idx].fd != server_fd_)
+	{
+		remove_client(idx);
+		return true;
+	}
+	return false;
+}
+
+bool Server::handle_poll_input(size_t &idx)
+{
+	if ((poll_fds_[idx].revents & POLLIN) == 0)
+	{
+		return false;
+	}
+	if (poll_fds_[idx].fd == server_fd_)
+	{
+		accept_client();
+		return false;
+	}
+	handle_client_read(idx);
+	return false;
+}
+
+void Server::handle_client_read(size_t &idx)
+{
+	Client *client = get_client(poll_fds_[idx].fd);
+	if (client == 0)
+	{
+		idx++;
+		return;
+	}
+	char	buffer[READ_BUFFER_SIZE];
+	ssize_t bytes = read(client->get_fd(), buffer, sizeof(buffer));
+	if (bytes == 0)
+	{
+		remove_client(idx);
+		return;
+	}
+	if (bytes < 0)
+	{
+		if (errno != EAGAIN && errno != EWOULDBLOCK)
+		{
+			remove_client(idx);
+		}
+		return;
+	}
+	client->append_to_buffer(buffer, bytes);
+	dprint("Server: Buffer size for fd " << client->get_fd() << ": "
+										 << client->get_buffer().size());
+
+	if (!client->has_complete_header())
+	{
+		return;
+	}
+	dprint("Server: Full HTTP headers received for fd " << client->get_fd());
+
+	HTTPRequest req;
+	bool		complete = req.parse(client->get_buffer());
+
+	if (req.is_error())
+	{
+		HTTPResponse response
+			= HTTPResponse::error_400(HTTPHandler::get_error_page(400));
+		client->set_response(response.to_string());
+		poll_fds_[idx].events |= POLLOUT;
+		client->clear_buffer();
+	}
+	else if (complete)
+	{
+		const RouteConfig *route = match_route(req.get_request_target());
+		HTTPResponse	   response
+			= HTTPHandler::handle_request(req, route, config_);
+		client->set_response(response.to_string());
+		poll_fds_[idx].events |= POLLOUT;
+		client->clear_buffer();
+	}
+	// else: body not fully received yet — keep buffer,
+	// wait for more data on next poll() cycle
+}
+
+bool Server::handle_poll_output(size_t &idx)
+{
+	if ((poll_fds_[idx].revents & POLLOUT) == 0)
+	{
+		return false;
+	}
+	Client *client = get_client(poll_fds_[idx].fd);
+	if (client == 0 || client->get_response().empty())
+	{
+		return false;
+	}
+	ssize_t sent = send(client->get_fd(),
+						client->get_response().c_str(),
+						client->get_response().length(),
+						0);
+	if (sent < 0)
+	{
+		eprint("Server: Error sending data to client");
+	}
+	else
+	{
+		dprint("Server: Sent " << sent << " bytes to client");
+	}
+	client->clear_response();
+	poll_fds_[idx].events &= ~POLLOUT;
+
+	// For now, close connection after sending response
+	remove_client(idx);
+	return true;
 }
 
 void Server::accept_client()

@@ -53,6 +53,11 @@ class HTTPRequest
 	bool							   has_body() const;
 	bool							   parse_body();
 	bool							   parse_chunked_body();
+	bool							   parse_chunk_size();
+	bool							   parse_chunk_data();
+	bool							   parse_chunk_data_crlf();
+	bool							   parse_chunk_trailers();
+	static bool parse_hex_string(const std::string &str, size_t &out);
 
   public:
 	///////////////////////////////////////////////// Canonical Orthodox Form //

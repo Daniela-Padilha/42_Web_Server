@@ -224,7 +224,7 @@ bool Config::parse_server_block(std::ifstream &file)
 				eprint("Config::parse_server_block: " << error_);
 				return false;
 			}
-			std::string loc_path = words[1];
+			const std::string &loc_path = words[1];
 
 			if (!expect_open_brace(file, "location"))
 			{
@@ -373,58 +373,24 @@ bool Config::parse_route_directive(RouteConfig					  &route,
 	}
 	else if (key == "autoindex")
 	{
-		if (!expect_args(words, 2, "autoindex"))
+		if (!parse_autoindex(route, words))
 		{
 			return false;
 		}
-		if (words[1] == "on")
-		{
-			route.autoindex = true;
-		}
-		else if (words[1] == "off")
-		{
-			route.autoindex = false;
-		}
-		else
-		{
-			error_ = "autoindex must be 'on' or 'off', got '" + words[1] + "'";
-			eprint("Config::parse_route_directive: " << error_);
-			return false;
-		}
-		dprint("Config::parse_route_directive: autoindex " << words[1]);
 	}
 	else if (key == "allow_methods")
 	{
-		if (!expect_args(words, 2, "allow_methods"))
+		if (!parse_allow_methods(route, words))
 		{
 			return false;
 		}
-		route.allowed_methods.clear();
-		for (size_t i = 1; i < words.size(); i++)
-		{
-			route.allowed_methods.push_back(words[i]);
-		}
-		dprint("Config::parse_route_directive: allow_methods set ("
-			   << route.allowed_methods.size() << " methods)");
 	}
 	else if (key == "return")
 	{
-		if (words.size() < 3)
+		if (!parse_return(route, words))
 		{
-			error_ = "return requires a code and a URL";
-			eprint("Config::parse_route_directive: " << error_);
 			return false;
 		}
-		std::istringstream code_stream(words[1]);
-		if (!(code_stream >> route.redirect_code))
-		{
-			error_ = "invalid redirect code: '" + words[1] + "'";
-			eprint("Config::parse_route_directive: " << error_);
-			return false;
-		}
-		route.redirect_url = words[2];
-		dprint("Config::parse_route_directive: return "
-			   << route.redirect_code << " " << route.redirect_url);
 	}
 	else if (key == "upload_store")
 	{
@@ -459,6 +425,70 @@ bool Config::parse_route_directive(RouteConfig					  &route,
 		eprint("Config::parse_route_directive: " << error_);
 		return false;
 	}
+	return true;
+}
+
+bool Config::parse_autoindex(RouteConfig					&route,
+							 const std::vector<std::string> &words)
+{
+	if (!expect_args(words, 2, "autoindex"))
+	{
+		return false;
+	}
+	if (words[1] == "on")
+	{
+		route.autoindex = true;
+	}
+	else if (words[1] == "off")
+	{
+		route.autoindex = false;
+	}
+	else
+	{
+		error_ = "autoindex must be 'on' or 'off', got '" + words[1] + "'";
+		eprint("Config::parse_autoindex: " << error_);
+		return false;
+	}
+	dprint("Config::parse_autoindex: autoindex " << words[1]);
+	return true;
+}
+
+bool Config::parse_allow_methods(RouteConfig					&route,
+								 const std::vector<std::string> &words)
+{
+	if (!expect_args(words, 2, "allow_methods"))
+	{
+		return false;
+	}
+	route.allowed_methods.clear();
+	for (size_t idx = 1; idx < words.size(); idx++)
+	{
+		route.allowed_methods.push_back(words[idx]);
+	}
+	dprint("Config::parse_allow_methods: allow_methods set ("
+		   << route.allowed_methods.size() << " methods)");
+	return true;
+}
+
+bool Config::parse_return(RouteConfig					 &route,
+						  const std::vector<std::string> &words)
+{
+	if (words.size() < 3)
+	{
+		error_ = "return requires a code and a URL";
+		eprint("Config::parse_return: " << error_);
+		return false;
+	}
+	std::istringstream code_stream(words[1]);
+	if (!(code_stream >> route.redirect_code))
+	{
+		error_ = "invalid redirect code: '" + words[1] + "'";
+		eprint("Config::parse_return: " << error_);
+		return false;
+	}
+	route.redirect_url = words[2];
+	dprint("Config::parse_return: return " << route.redirect_code << " "
+										   << route.redirect_url);
 	return true;
 }
 

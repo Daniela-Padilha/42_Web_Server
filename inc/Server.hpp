@@ -33,6 +33,10 @@ class Server
 	void				  remove_client(size_t index);
 	Client				 *get_client(int fd);
 	const RouteConfig	 *match_route(const std::string &uri) const;
+	bool				  handle_poll_errors(size_t &idx);
+	bool				  handle_poll_input(size_t &idx);
+	void				  handle_client_read(size_t &idx);
+	bool				  handle_poll_output(size_t &idx);
 
   public:
 	Server(const ServerConfig &config);

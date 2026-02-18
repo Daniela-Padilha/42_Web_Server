@@ -55,6 +55,12 @@ class Config
 													const std::vector<std::string> &words);
 	bool							parse_route_directive(RouteConfig					 &route,
 														  const std::vector<std::string> &words);
+	bool							parse_autoindex(RouteConfig					   &route,
+													const std::vector<std::string> &words);
+	bool							parse_allow_methods(RouteConfig					   &route,
+														const std::vector<std::string> &words);
+	bool							parse_return(RouteConfig					&route,
+												 const std::vector<std::string> &words);
 
 	////////////////////////////////////////////////////////////// Validation //
 	bool							validate();

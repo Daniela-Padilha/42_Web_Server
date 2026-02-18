@@ -1,6 +1,6 @@
 #include "../inc/HTTPRequest.hpp"
 
-static const size_t CRLF_LEN = 2; // length of "\r\n"
+static const size_t CRLF_LEN = 2;
 
 /////////////////////////////////////////////////////////////////////// parse //
 bool				HTTPRequest::parse(const std::string &buffer)
@@ -237,152 +237,189 @@ bool HTTPRequest::parse_chunked_body()
 {
 	while (true)
 	{
+		bool done = false;
 		if (chunked_state_ == CHUNK_SIZE_)
 		{
-			size_t pos = buffer_.find("\r\n");
-			if (pos == std::string::npos)
-			{
-				dprint("HTTPRequest: parse_chunked_body: "
-					   "Waiting for chunk size line");
-				return false;
-			}
-
-			std::string size_line = buffer_.substr(0, pos);
-			buffer_.erase(0, pos + CRLF_LEN);
-
-			// Strip optional chunk extensions after ';'
-			size_t semi = size_line.find(';');
-			if (semi != std::string::npos)
-			{
-				size_line = size_line.substr(0, semi);
-			}
-
-			// Trim whitespace
-			size_t start = size_line.find_first_not_of(" \t");
-			size_t end	 = size_line.find_last_not_of(" \t");
-			if (start == std::string::npos)
-			{
-				eprint("HTTPRequest: parse_chunked_body: "
-					   "Empty chunk size line");
-				state_ = PARSSING_ERROR_;
-				return false;
-			}
-			size_line = size_line.substr(start, end - start + 1);
-
-			// Validate hex digits
-			for (size_t i = 0; i < size_line.length(); ++i)
-			{
-				char chr = size_line[i];
-				if ((chr < '0' || chr > '9') && (chr < 'a' || chr > 'f')
-					&& (chr < 'A' || chr > 'F'))
-				{
-					eprint("HTTPRequest: parse_chunked_body: "
-						   "Invalid hex in chunk size: "
-						   + size_line);
-					state_ = PARSSING_ERROR_;
-					return false;
-				}
-			}
-
-			// Parse hex size
-			chunk_remaining_ = 0;
-			for (size_t i = 0; i < size_line.length(); ++i)
-			{
-				char   chr	 = size_line[i];
-				size_t digit = 0;
-				if (chr >= '0' && chr <= '9')
-				{
-					digit = chr - '0';
-				}
-				else if (chr >= 'a' && chr <= 'f')
-				{
-					digit = 10 + (chr - 'a');
-				}
-				else if (chr >= 'A' && chr <= 'F')
-				{
-					digit = 10 + (chr - 'A');
-				}
-				chunk_remaining_ = (chunk_remaining_ * 16) + digit;
-			}
-
-			dprint("HTTPRequest: parse_chunked_body: "
-				   "chunk size = "
-				   << chunk_remaining_);
-
-			if (chunk_remaining_ == 0)
-			{
-				chunked_state_ = CHUNK_TRAILERS_;
-			}
-			else
-			{
-				chunked_state_ = CHUNK_DATA_;
-			}
+			done = parse_chunk_size();
 		}
 		else if (chunked_state_ == CHUNK_DATA_)
 		{
-			if (buffer_.length() >= chunk_remaining_)
-			{
-				body_ += buffer_.substr(0, chunk_remaining_);
-				buffer_.erase(0, chunk_remaining_);
-				chunk_remaining_ = 0;
-				chunked_state_	 = CHUNK_DATA_CRLF_;
-			}
-			else
-			{
-				chunk_remaining_ -= buffer_.length();
-				body_ += buffer_;
-				buffer_.clear();
-				dprint("HTTPRequest: parse_chunked_body: "
-					   "Waiting for more chunk data, remaining = "
-					   << chunk_remaining_);
-				return false;
-			}
+			done = parse_chunk_data();
 		}
 		else if (chunked_state_ == CHUNK_DATA_CRLF_)
 		{
-			if (buffer_.length() < CRLF_LEN)
-			{
-				dprint("HTTPRequest: parse_chunked_body: "
-					   "Waiting for CRLF after chunk data");
-				return false;
-			}
-
-			if (buffer_[0] != '\r' || buffer_[1] != '\n')
-			{
-				eprint("HTTPRequest: parse_chunked_body: "
-					   "Missing CRLF after chunk data");
-				state_ = PARSSING_ERROR_;
-				return false;
-			}
-
-			buffer_.erase(0, CRLF_LEN);
-			chunked_state_ = CHUNK_SIZE_;
+			done = parse_chunk_data_crlf();
 		}
 		else if (chunked_state_ == CHUNK_TRAILERS_)
 		{
-			size_t pos = buffer_.find("\r\n");
-			if (pos == std::string::npos)
-			{
-				dprint("HTTPRequest: parse_chunked_body: "
-					   "Waiting for trailer/final CRLF");
-				return false;
-			}
-
-			std::string line = buffer_.substr(0, pos);
-			buffer_.erase(0, pos + CRLF_LEN);
-
-			if (line.empty())
-			{
-				dprint("HTTPRequest: parse_chunked_body: "
-					   "Chunked body complete, total body size = "
-					   << body_.length());
-				return true;
-			}
-
-			dprint("HTTPRequest: parse_chunked_body: "
-				   "Ignoring trailer: "
-				   + line);
+			return parse_chunk_trailers();
 		}
+		if (!done)
+		{
+			return false;
+		}
+	}
+}
+
+bool HTTPRequest::parse_hex_string(const std::string &str, size_t &out)
+{
+	for (size_t i = 0; i < str.length(); ++i)
+	{
+		char chr = str[i];
+		if ((chr < '0' || chr > '9') && (chr < 'a' || chr > 'f')
+			&& (chr < 'A' || chr > 'F'))
+		{
+			return false;
+		}
+	}
+	out = 0;
+	for (size_t i = 0; i < str.length(); ++i)
+	{
+		char   chr	 = str[i];
+		size_t digit = 0;
+		if (chr >= '0' && chr <= '9')
+		{
+			digit = chr - '0';
+		}
+		else if (chr >= 'a' && chr <= 'f')
+		{
+			digit = 10 + (chr - 'a');
+		}
+		else if (chr >= 'A' && chr <= 'F')
+		{
+			digit = 10 + (chr - 'A');
+		}
+		out = (out * 16) + digit;
+	}
+	return true;
+}
+
+bool HTTPRequest::parse_chunk_size()
+{
+	size_t pos = buffer_.find("\r\n");
+	if (pos == std::string::npos)
+	{
+		dprint("HTTPRequest: parse_chunk_size: "
+			   "Waiting for chunk size line");
+		return false;
+	}
+
+	std::string size_line = buffer_.substr(0, pos);
+	buffer_.erase(0, pos + CRLF_LEN);
+
+	// Strip optional chunk extensions after ';'
+	size_t semi = size_line.find(';');
+	if (semi != std::string::npos)
+	{
+		size_line = size_line.substr(0, semi);
+	}
+
+	// Trim whitespace
+	size_t start = size_line.find_first_not_of(" \t");
+	size_t end	 = size_line.find_last_not_of(" \t");
+	if (start == std::string::npos)
+	{
+		eprint("HTTPRequest: parse_chunk_size: "
+			   "Empty chunk size line");
+		state_ = PARSSING_ERROR_;
+		return false;
+	}
+	size_line = size_line.substr(start, end - start + 1);
+
+	if (!parse_hex_string(size_line, chunk_remaining_))
+	{
+		eprint("HTTPRequest: parse_chunk_size: "
+			   "Invalid hex in chunk size: "
+			   + size_line);
+		state_ = PARSSING_ERROR_;
+		return false;
+	}
+
+	dprint("HTTPRequest: parse_chunk_size: "
+		   "chunk size = "
+		   << chunk_remaining_);
+
+	if (chunk_remaining_ == 0)
+	{
+		chunked_state_ = CHUNK_TRAILERS_;
+	}
+	else
+	{
+		chunked_state_ = CHUNK_DATA_;
+	}
+	return true;
+}
+
+bool HTTPRequest::parse_chunk_data()
+{
+	if (buffer_.length() >= chunk_remaining_)
+	{
+		body_ += buffer_.substr(0, chunk_remaining_);
+		buffer_.erase(0, chunk_remaining_);
+		chunk_remaining_ = 0;
+		chunked_state_	 = CHUNK_DATA_CRLF_;
+	}
+	else
+	{
+		chunk_remaining_ -= buffer_.length();
+		body_ += buffer_;
+		buffer_.clear();
+		dprint("HTTPRequest: parse_chunk_data: "
+			   "Waiting for more chunk data, remaining = "
+			   << chunk_remaining_);
+		return false;
+	}
+	return true;
+}
+
+bool HTTPRequest::parse_chunk_data_crlf()
+{
+	if (buffer_.length() < CRLF_LEN)
+	{
+		dprint("HTTPRequest: parse_chunk_data_crlf: "
+			   "Waiting for CRLF after chunk data");
+		return false;
+	}
+
+	if (buffer_[0] != '\r' || buffer_[1] != '\n')
+	{
+		eprint("HTTPRequest: parse_chunk_data_crlf: "
+			   "Missing CRLF after chunk data");
+		state_ = PARSSING_ERROR_;
+		return false;
+	}
+
+	buffer_.erase(0, CRLF_LEN);
+	chunked_state_ = CHUNK_SIZE_;
+	return true;
+}
+
+bool HTTPRequest::parse_chunk_trailers()
+{
+	while (true)
+	{
+		size_t pos = buffer_.find("\r\n");
+		if (pos == std::string::npos)
+		{
+			dprint("HTTPRequest: parse_chunk_trailers: "
+				   "Waiting for trailer/final CRLF");
+			return false;
+		}
+
+		std::string line = buffer_.substr(0, pos);
+		buffer_.erase(0, pos + CRLF_LEN);
+
+		if (line.empty())
+		{
+			dprint("HTTPRequest: parse_chunk_trailers: "
+				   "Chunked body complete, total body size = "
+				   << body_.length());
+			return true;
+		}
+
+		dprint("HTTPRequest: parse_chunk_trailers: "
+			   "Ignoring trailer: "
+			   + line);
 	}
 }
 
