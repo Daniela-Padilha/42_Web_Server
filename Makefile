@@ -268,66 +268,74 @@ VALGRIND_CMD = valgrind \
 	--max-stackframe=4200000
 
 ######################################################################### Test #
-test: CFLAGS += $(DEBUG_FLAGS)
-test: check-guards fclean $(NAME) 
+TEST_FLAGS		:= -DTESTING
+
+test: CFLAGS += $(TEST_FLAGS)
+test: check-guards fclean $(NAME)
 	@\
-	echo "\
-	$(COR)$(GRAY)========================================== $(NAME) START\
-	$(COR)" && \
-	\
+	echo "$(COR)$(GRAY)=========================================="\
+	" $(NAME) UNIT TESTS$(COR)"											; \
 	trap '' INT TERM													; \
 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)							; \
-	RET=$$?																; \
+	RET1=$$?															; \
 	trap - INT TERM														; \
-	\
-	echo "\
-	$(COR)$(GRAY)========================================== $(NAME) END\n\
-	$(COR)RETURN VALUE: $$RET"											; \
-	make style --silent
+	echo "$(COR)$(GRAY)Unit tests return value:$(COR) $$RET1"			; \
+	if [ $$RET1 -ne 0 ]; then exit $$RET1; fi							; \
+	echo "$(COR)$(GRAY)=========================================="\
+	" $(NAME) UPLOAD-DELETE TEST$(COR)"									; \
+	make re --silent													; \
+	trap '' INT TERM													; \
+	make upload-delete --silent											&& \
+	RET2=$$?															; \
+	trap - INT TERM														; \
+	echo "$(COR)$(GRAY)=========================================="\
+	" $(NAME) TESTS END$(COR)"											; \
+	echo "$(COR)$(GREEN)       unit tests return value:$(COR) $$RET1"	; \
+	echo "$(COR)$(GREEN)up-download tests return value:$(COR) $$RET2"
 
 upload-delete: $(NAME)
 	@\
-	echo "$(GRAY)Starting Integration Check...$(COR)"					; \
+	echo "==TESTS== $(GRAY)Starting Integration Check...$(COR)"			; \
 	mkdir -p uploads													; \
 	./$(NAME)  & echo $$! > server.pid					; \
-	sleep 4																; \
-	echo "$(GRAY)Creating test file...$(COR)"							; \
+	sleep 2																; \
+	echo "==TESTS== $(GRAY)Creating test file...$(COR)"					; \
 	echo "This is a test file" > test_upload.txt						; \
-	echo "$(GRAY)Uploading file...$(COR)"								; \
+	echo "==TESTS== $(GRAY)Uploading file...$(COR)"						; \
 	if curl -s -o /dev/null -w "%{http_code}" -X POST -F \
 		"file=@test_upload.txt" http://localhost:8080/ | grep -q "201"; then \
-		echo "$(GREEN)Upload successful.$(COR)"							; \
+		echo "==TESTS== $(GREEN)Upload successful.$(COR)"				; \
 	else \
-		echo "$(ORANGE)Upload failed$(COR)"								; \
+		echo "==TESTS== $(ORANGE)Upload failed$(COR)"					; \
 		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
 		exit 1															; \
 	fi																	; \
 	if [ -f uploads/test_upload.txt ]; then \
-		echo "$(GREEN)File verified on server.$(COR)"					; \
+		echo "==TESTS== $(GREEN)File verified on server.$(COR)"			; \
 	else \
-		echo "$(ORANGE)File not found in uploads/$(COR)"				; \
+		echo "==TESTS== $(ORANGE)File not found in uploads/$(COR)"		; \
 		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
 		exit 1															; \
 	fi																	; \
-	echo "$(GRAY)Waiting a moment...$(COR)"								; \
+	echo "==TESTS== $(GRAY)Waiting a moment...$(COR)"					; \
 	sleep 7																; \
-	echo "$(GRAY)Deleting file...$(COR)"								; \
+	echo "==TESTS== $(GRAY)Deleting file...$(COR)"						; \
 	if curl --path-as-is -s -o /dev/null -w "%{http_code}" -X DELETE \
 		http://localhost:8080/../uploads/test_upload.txt | grep -q "200"; then \
-		echo "$(GREEN)Delete successful.$(COR)"							; \
+		echo "==TESTS== $(GREEN)Delete successful.$(COR)"				; \
 	else \
-		echo "$(ORANGE)Delete failed$(COR)"								; \
+		echo "==TESTS== $(ORANGE)Delete failed$(COR)"					; \
 		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
 		exit 1															; \
 	fi																	; \
 	if [ ! -f uploads/test_upload.txt ]; then \
-		echo "$(GREEN)File deletion verified.$(COR)"					; \
+		echo "==TESTS== $(GREEN)File deletion verified.$(COR)"			; \
 	else \
-		echo "$(ORANGE)File still exists in uploads/$(COR)"				; \
+		echo "==TESTS== $(ORANGE)File still exists in uploads/$(COR)"	; \
 		kill $$(cat server.pid) && rm -f server.pid test_upload.txt		; \
 		exit 1															; \
 	fi																	; \
-	echo "$(GREEN)Integration Check Passed!$(COR)"						; \
+	echo "==TESTS== $(GREEN)Integration Check Passed!$(COR)"			; \
 	kill $$(cat server.pid) && rm -f server.pid test_upload.txt
 
 exe: format fclean $(NAME) 

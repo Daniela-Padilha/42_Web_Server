@@ -2,6 +2,13 @@
 
 int main(int argc, char **argv)
 {
+#ifdef TESTING
+	(void) argc;
+	(void) argv;
+	test_http_parser();
+	return (EXIT_SUCCESS);
+#endif
+
 	init_signals();
 
 	std::string config_path;
