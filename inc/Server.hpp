@@ -9,6 +9,7 @@
 #include "../inc/utils_print.hpp"
 
 #include <cerrno>
+#include <cstddef>
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>

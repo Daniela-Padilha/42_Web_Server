@@ -29,7 +29,8 @@ Server::Server(const ServerConfig &config) :
 	set_reuse_addr(server_fd_);
 
 	// choose address + port that server will use
-	if (bind(server_fd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
+	if (bind(server_fd_, reinterpret_cast<sockaddr *>(&addr_), sizeof(addr_))
+		< 0)
 	{
 		std::cerr << "Error: bind failed: " << strerror(errno) << '\n';
 		close(server_fd_);
@@ -240,6 +241,7 @@ bool Server::handle_poll_output(size_t &idx)
 	if (sent < 0)
 	{
 		eprint("Server: Error sending data to client");
+		std::cerr << "Error sending data to client\n";
 	}
 	else
 	{
@@ -262,7 +264,9 @@ void Server::accept_client()
 
 	// waits a connection, when it arrives, opens a new socket to communicate
 	client_len = sizeof(client_addr);
-	client_fd  = accept(server_fd_, (sockaddr *) &client_addr, &client_len);
+	client_fd  = accept(server_fd_,
+						reinterpret_cast<sockaddr *>(&client_addr),
+						&client_len);
 	if (client_fd < 0)
 	{
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
@@ -296,7 +300,7 @@ void Server::remove_client(size_t index)
 	clients_.erase(fd);
 
 	// remove from poll vector
-	poll_fds_.erase(poll_fds_.begin() + index);
+	poll_fds_.erase(poll_fds_.begin() + static_cast<std::ptrdiff_t>(index));
 }
 
 void Server::set_non_blocking(int fd)

@@ -58,6 +58,7 @@ class HTTPRequest
 	bool							   parse_chunk_data_crlf();
 	bool							   parse_chunk_trailers();
 	static bool parse_hex_string(const std::string &str, size_t &out);
+	static void str_to_lower(std::string &str);
 
   public:
 	///////////////////////////////////////////////// Canonical Orthodox Form //

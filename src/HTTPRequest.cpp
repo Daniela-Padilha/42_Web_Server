@@ -2,8 +2,17 @@
 
 static const size_t CRLF_LEN = 2;
 
+void				HTTPRequest::str_to_lower(std::string &str)
+{
+	for (size_t i = 0; i < str.length(); ++i)
+	{
+		str[i] = static_cast<char>(
+			std::tolower(static_cast<unsigned char>(str[i])));
+	}
+}
+
 /////////////////////////////////////////////////////////////////////// parse //
-bool				HTTPRequest::parse(const std::string &buffer)
+bool HTTPRequest::parse(const std::string &buffer)
 {
 	buffer_ += buffer;
 	if (DEBUG)
@@ -34,10 +43,7 @@ bool				HTTPRequest::parse(const std::string &buffer)
 			if (has_body())
 			{
 				std::string ten = get_header_value("Transfer-Encoding");
-				for (size_t i = 0; i < ten.length(); ++i)
-				{
-					ten[i] = std::tolower(ten[i]);
-				}
+				str_to_lower(ten);
 				is_chunked_ = (ten.find("chunked") != std::string::npos);
 
 				state_ = PARSSING_BODY_;
@@ -146,10 +152,7 @@ bool HTTPRequest::parse_headers()
 		std::string key	  = line.substr(0, colon);
 		std::string value = line.substr(colon + 1);
 
-		for (size_t i = 0; i < key.length(); ++i)
-		{
-			key[i] = std::tolower(key[i]);
-		}
+		str_to_lower(key);
 
 		size_t value_start = value.find_first_not_of(" \t");
 		size_t value_end   = value.find_last_not_of(" \t");
@@ -177,10 +180,7 @@ bool HTTPRequest::has_body() const
 	if (iterator != headers_.end())
 	{
 		std::string value = iterator->second;
-		for (size_t i = 0; i < value.length(); ++i)
-		{
-			value[i] = std::tolower(value[i]);
-		}
+		str_to_lower(value);
 		if (value.find("chunked") != std::string::npos)
 		{
 			return true;
@@ -442,10 +442,7 @@ const std::string &HTTPRequest::get_protocol() const
 std::string HTTPRequest::get_header_value(const std::string &key) const
 {
 	std::string lower_key = key;
-	for (size_t i = 0; i < lower_key.length(); ++i)
-	{
-		lower_key[i] = std::tolower(lower_key[i]);
-	}
+	str_to_lower(lower_key);
 
 	std::map<std::string, std::string>::const_iterator iterator
 		= headers_.find(lower_key);

@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 	if (!init_args(argc, argv, config_path)
 		|| !init_config(config_path, config))
 	{
-		return (42);
+		return (EXIT_FAILURE);
 	}
 
 	const ServerConfig &parsed_config = config.get_server();
