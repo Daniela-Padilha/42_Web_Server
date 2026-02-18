@@ -1,7 +1,11 @@
 #include "../inc/HTTPHandler.hpp"
 
-static const std::string   STATIC_FILES_DIR = "files";
-static const std::string   UPLOADS_DIR		= "uploads";
+static const std::string   BOUNDARY_PREFIX	  = "boundary=";
+static const std::string   FILENAME_PREFIX	  = "filename=\"";
+static const std::string   HEADER_BODY_DELIM  = "\r\n\r\n";
+static const std::string   DEFAULT_ROOT_DIR	  = "files";
+static const std::string   DEFAULT_INDEX_FILE = "index.html";
+static const std::string   DEFAULT_UPLOAD_DIR = "uploads";
 
 std::map<int, std::string> HTTPHandler::error_pages_;
 
@@ -21,39 +25,86 @@ std::string HTTPHandler::get_error_page(int status_code)
 	return "";
 }
 
-HTTPResponse HTTPHandler::handle_request(const HTTPRequest &request)
+HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
+										 const RouteConfig	*route,
+										 const ServerConfig &server)
 {
+	(void) server;
 	const std::string &method = request.get_method();
 
 	dprint("HTTPHandler: Handling " << method << " request for "
 									<< request.get_request_target());
 
+	if (route == NULL)
+	{
+		dprint("HTTPHandler: handle_request: no route match");
+		return HTTPResponse::error_404(get_error_page(404));
+	}
+
+	// check allowed methods
+	if (!route->allowed_methods.empty())
+	{
+		bool method_allowed = false;
+		for (size_t i = 0; i < route->allowed_methods.size(); i++)
+		{
+			if (route->allowed_methods[i] == method)
+			{
+				method_allowed = true;
+				break;
+			}
+		}
+		if (!method_allowed)
+		{
+			return HTTPResponse::error_405(get_error_page(405));
+		}
+	}
+
 	if (method == "GET")
 	{
-		return handle_get(request);
+		return handle_get(request, *route);
 	}
 	if (method == "POST")
 	{
-		return handle_post(request);
+		return handle_post(request, *route);
 	}
 	if (method == "DELETE")
 	{
-		return handle_delete(request);
+		return handle_delete(request, *route);
 	}
 
 	return HTTPResponse::error_405(get_error_page(405));
 }
 
-HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
+HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
+									 const RouteConfig &route)
 {
 	std::string request_target = request.get_request_target();
-
-	if (request_target == "/")
+	std::string root_dir;
+	if (route.root.empty())
 	{
-		request_target = "/index.html";
+		root_dir = DEFAULT_ROOT_DIR;
+	}
+	else
+	{
+		root_dir = route.root;
 	}
 
-	std::string file_path = STATIC_FILES_DIR + request_target;
+	std::string index_file;
+	if (route.index.empty())
+	{
+		index_file = DEFAULT_INDEX_FILE;
+	}
+	else
+	{
+		index_file = route.index;
+	}
+
+	if (request_target == "/" || request_target == route.path)
+	{
+		request_target = "/" + index_file;
+	}
+
+	std::string file_path = root_dir + request_target;
 
 	dprint("HTTPHandler: GET file_path = " << file_path);
 
@@ -66,7 +117,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
 
 	if (S_ISDIR(file_stat.st_mode))
 	{
-		std::string index_path = file_path + "/index.html";
+		std::string index_path = file_path + "/" + index_file;
 		if (stat(index_path.c_str(), &file_stat) == 0)
 		{
 			file_path = index_path;
@@ -96,10 +147,20 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
 	return HTTPResponse::success_200(body, mime_type);
 }
 
-HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request)
+HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request,
+									  const RouteConfig &route)
 {
 	const std::string &content_type = request.get_header_value("content-type");
 	const std::string &body			= request.get_body();
+	std::string		   uploads_dir;
+	if (route.upload_store.empty())
+	{
+		uploads_dir = DEFAULT_UPLOAD_DIR;
+	}
+	else
+	{
+		uploads_dir = route.upload_store;
+	}
 
 	dprint("HTTPHandler: POST content-type = " << content_type);
 
@@ -108,22 +169,23 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request)
 		size_t boundary_pos = content_type.find("boundary=");
 		if (boundary_pos != std::string::npos)
 		{
-			std::string boundary = content_type.substr(boundary_pos + 9);
-			boundary			 = "--" + boundary;
+			std::string boundary
+				= content_type.substr(boundary_pos + BOUNDARY_PREFIX.length());
+			boundary = "--" + boundary;
 
-			size_t filename_pos = body.find("filename=\"");
+			size_t filename_pos = body.find(FILENAME_PREFIX);
 			if (filename_pos != std::string::npos)
 			{
-				size_t		filename_start = filename_pos + 10;
-				size_t		filename_end   = body.find('\"', filename_start);
+				size_t filename_start = filename_pos + FILENAME_PREFIX.length();
+				size_t filename_end	  = body.find('\"', filename_start);
 				std::string filename
 					= body.substr(filename_start,
 								  filename_end - filename_start);
 
-				size_t data_start = body.find("\r\n\r\n", filename_end);
+				size_t data_start = body.find(HEADER_BODY_DELIM, filename_end);
 				if (data_start != std::string::npos)
 				{
-					data_start += 4;
+					data_start += HEADER_BODY_DELIM.length();
 
 					size_t data_end
 						= body.find("\r\n--" + boundary.substr(2), data_start);
@@ -135,7 +197,7 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request)
 					std::string file_data
 						= body.substr(data_start, data_end - data_start);
 
-					std::string	  upload_path = UPLOADS_DIR + "/" + filename;
+					std::string	  upload_path = uploads_dir + "/" + filename;
 					std::ofstream outfile(upload_path.c_str(),
 										  std::ios::binary);
 					if (outfile != 0)
@@ -161,7 +223,7 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request)
 	{
 		std::string	  decoded_body = url_decode(body);
 
-		std::string	  upload_path = UPLOADS_DIR + "/form_data.txt";
+		std::string	  upload_path = uploads_dir + "/form_data.txt";
 		std::ofstream outfile(upload_path.c_str(), std::ios::app);
 		if (outfile != 0)
 		{
@@ -183,16 +245,26 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request)
 	return HTTPResponse::success_200(response_body.str(), "text/html");
 }
 
-HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request)
+HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request,
+										const RouteConfig &route)
 {
 	const std::string &request_target = request.get_request_target();
+	std::string		   root_dir;
+	if (route.root.empty())
+	{
+		root_dir = DEFAULT_ROOT_DIR;
+	}
+	else
+	{
+		root_dir = route.root;
+	}
 
 	if (request_target == "/")
 	{
 		return HTTPResponse::error_400(get_error_page(400));
 	}
 
-	std::string file_path = STATIC_FILES_DIR + request_target;
+	std::string file_path = root_dir + request_target;
 
 	dprint("HTTPHandler: DELETE file_path = " << file_path);
 
@@ -334,12 +406,12 @@ HTTPHandler::HTTPHandler()
 
 HTTPHandler::HTTPHandler(const HTTPHandler &other)
 {
-	(void) other; // Nothing to copy
+	(void) other;
 }
 
 HTTPHandler &HTTPHandler::operator=(const HTTPHandler &other)
 {
-	(void) other; // Nothing to assign
+	(void) other;
 	return *this;
 }
 

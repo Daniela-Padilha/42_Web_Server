@@ -9,6 +9,7 @@ TEST_RUN		= $(NAME)
 HEADERS			:=															\
 	inc/webserver.hpp														\
 	\
+	inc/Config.hpp															\
 	inc/HTTPRequest.hpp														\
 	inc/HTTPResponse.hpp													\
 	inc/HTTPHandler.hpp														\
@@ -17,10 +18,13 @@ HEADERS			:=															\
 	inc/Client.hpp															\
 	inc/Server.hpp															\
 	inc/signals.hpp															\
+	inc/init.hpp															\
 
 SRCS			:=															\
 	src/main.cpp															\
 	\
+	src/Config.cpp															\
+	src/init.cpp															\
 	src/HTTPRequest.cpp														\
 	src/HTTPResponse.cpp													\
 	src/HTTPHandler.cpp														\
@@ -248,10 +252,12 @@ endef
 ##################################################################### Valgrind #
 valgrind: $(NAME)
 	@\
-	echo "$(GRAY)Executing arg:$(COR)	time valgrind ./$(TEST_RUN)"		; \
+	echo "$(GRAY)Executing arg:$(COR)   time valgrind ./$(TEST_RUN)"		; \
 	trap '' INT TERM														; \
 	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)								; \
-	trap - INT TERM
+	RET=$$?																	; \
+	trap - INT TERM															; \
+	exit $$RET
 
 VALGRIND_CMD = valgrind \
 	--track-fds=yes \
@@ -263,17 +269,20 @@ VALGRIND_CMD = valgrind \
 
 ######################################################################### Test #
 test: CFLAGS += $(DEBUG_FLAGS)
-test: check-guards clang-check fclean $(NAME) 
+test: check-guards fclean $(NAME) 
 	@\
 	echo "\
 	$(COR)$(GRAY)========================================== $(NAME) START\
 	$(COR)" && \
 	\
-	make valgrind --silent												; \
+	trap '' INT TERM													; \
+	$(TIMED_RUN) $(VALGRIND_CMD) ./$(TEST_RUN)							; \
+	RET=$$?																; \
+	trap - INT TERM														; \
 	\
 	echo "\
 	$(COR)$(GRAY)========================================== $(NAME) END\n\
-	$(COR)RETURN VALUE: $$?"											; \
+	$(COR)RETURN VALUE: $$RET"											; \
 	make style --silent
 
 upload-delete: $(NAME)

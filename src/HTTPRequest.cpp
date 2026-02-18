@@ -1,13 +1,11 @@
 #include "../inc/HTTPRequest.hpp"
 
+static const size_t CRLF_LEN = 2; // length of "\r\n"
+
 /////////////////////////////////////////////////////////////////////// parse //
-bool HTTPRequest::parse(const std::string &buffer)
+bool				HTTPRequest::parse(const std::string &buffer)
 {
-	// dprint("HTTPRequest: parse: previous buffer  <" << this->buffer_ << ">");
-	// dprint("HTTPRequest: parse: append to buffer <" << buffer << ">");
-
 	buffer_ += buffer;
-
 	if (DEBUG)
 	{
 		dprint("HTTPRequest: parse: current buffer bellow:");
@@ -76,11 +74,11 @@ bool HTTPRequest::parse_request_line()
 	}
 
 	std::string line = buffer_.substr(0, pos);
-	buffer_.erase(0, pos + 2);
+	buffer_.erase(0, pos + CRLF_LEN);
 
 	dprint("HTTPRequest: parse_request: Parsing request line: " + line);
-	size_t firstSpace = line.find(' ');
-	if (firstSpace == std::string::npos)
+	size_t first_space = line.find(' ');
+	if (first_space == std::string::npos)
 	{
 		eprint("HTTPRequest: parse_request: "
 			   "Invalid request line: no first space");
@@ -88,8 +86,8 @@ bool HTTPRequest::parse_request_line()
 		return false;
 	}
 
-	size_t secondSpace = line.find(' ', firstSpace + 1);
-	if (secondSpace == std::string::npos)
+	size_t second_space = line.find(' ', first_space + 1);
+	if (second_space == std::string::npos)
 	{
 		eprint("HTTPRequest: parse_request: "
 			   "Invalid request line: no second space");
@@ -97,11 +95,12 @@ bool HTTPRequest::parse_request_line()
 		return false;
 	}
 
-	method_ = line.substr(0, firstSpace);
+	method_ = line.substr(0, first_space);
 	dprint("HTTPRequest: parse_request: method: " + method_);
-	request_target_ = line.substr(firstSpace + 1, secondSpace - firstSpace - 1);
+	request_target_
+		= line.substr(first_space + 1, second_space - first_space - 1);
 	dprint("HTTPRequest: parse_request: request target: " + request_target_);
-	protocol_ = line.substr(secondSpace + 1);
+	protocol_ = line.substr(second_space + 1);
 	dprint("HTTPRequest: parse_request: protocol: " + protocol_);
 
 	if (method_.empty() || request_target_.empty() || protocol_.empty())
@@ -127,7 +126,7 @@ bool HTTPRequest::parse_headers()
 		}
 
 		std::string line = buffer_.substr(0, pos);
-		buffer_.erase(0, pos + 2);
+		buffer_.erase(0, pos + CRLF_LEN);
 
 		if (line.empty())
 		{
@@ -152,11 +151,11 @@ bool HTTPRequest::parse_headers()
 			key[i] = std::tolower(key[i]);
 		}
 
-		size_t valueStart = value.find_first_not_of(" \t");
-		size_t valueEnd	  = value.find_last_not_of(" \t");
-		if (valueStart != std::string::npos && valueEnd != std::string::npos)
+		size_t value_start = value.find_first_not_of(" \t");
+		size_t value_end   = value.find_last_not_of(" \t");
+		if (value_start != std::string::npos && value_end != std::string::npos)
 		{
-			value = value.substr(valueStart, valueEnd - valueStart + 1);
+			value = value.substr(value_start, value_end - value_start + 1);
 		}
 		else
 		{
@@ -226,8 +225,7 @@ bool HTTPRequest::parse_body()
 	return true;
 }
 
-///////////////////////////////////////////// Chunked transfer encoding parser
-/////
+//////////////////////////////////////////// Chunked transfer encoding parser //
 // State machine:
 //   CHUNK_SIZE_      -> read hex size line (terminated by CRLF), may have
 //                       chunk-ext after ';' which we ignore
@@ -235,7 +233,6 @@ bool HTTPRequest::parse_body()
 //   CHUNK_DATA_CRLF_ -> consume the CRLF after chunk data
 //   CHUNK_TRAILERS_  -> after the final 0-size chunk, consume trailer
 //                       headers until an empty line (CRLF)
-
 bool HTTPRequest::parse_chunked_body()
 {
 	while (true)
@@ -251,7 +248,7 @@ bool HTTPRequest::parse_chunked_body()
 			}
 
 			std::string size_line = buffer_.substr(0, pos);
-			buffer_.erase(0, pos + 2);
+			buffer_.erase(0, pos + CRLF_LEN);
 
 			// Strip optional chunk extensions after ';'
 			size_t semi = size_line.find(';');
@@ -343,7 +340,7 @@ bool HTTPRequest::parse_chunked_body()
 		}
 		else if (chunked_state_ == CHUNK_DATA_CRLF_)
 		{
-			if (buffer_.length() < 2)
+			if (buffer_.length() < CRLF_LEN)
 			{
 				dprint("HTTPRequest: parse_chunked_body: "
 					   "Waiting for CRLF after chunk data");
@@ -358,7 +355,7 @@ bool HTTPRequest::parse_chunked_body()
 				return false;
 			}
 
-			buffer_.erase(0, 2);
+			buffer_.erase(0, CRLF_LEN);
 			chunked_state_ = CHUNK_SIZE_;
 		}
 		else if (chunked_state_ == CHUNK_TRAILERS_)
@@ -372,7 +369,7 @@ bool HTTPRequest::parse_chunked_body()
 			}
 
 			std::string line = buffer_.substr(0, pos);
-			buffer_.erase(0, pos + 2);
+			buffer_.erase(0, pos + CRLF_LEN);
 
 			if (line.empty())
 			{

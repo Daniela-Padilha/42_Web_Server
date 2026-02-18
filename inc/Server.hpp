@@ -2,6 +2,7 @@
 #define SERVER_HPP
 
 #include "Client.hpp"
+#include "Config.hpp"
 
 #include "../inc/HTTPRequest.hpp"
 #include "../inc/signals.hpp"
@@ -21,18 +22,20 @@
 class Server
 {
   private:
-	int					  serverFd_;
+	int					  server_fd_;
 	sockaddr_in			  addr_;
 	std::map<int, Client> clients_;
-	std::vector<pollfd>	  pollFds_;
+	std::vector<pollfd>	  poll_fds_;
+	ServerConfig		  config_;
 
 	static void			  set_non_blocking(int fd);
 	static void			  set_reuse_addr(int fd);
 	void				  remove_client(size_t index);
 	Client				 *get_client(int fd);
+	const RouteConfig	 *match_route(const std::string &uri) const;
 
   public:
-	Server(int port);
+	Server(const ServerConfig &config);
 	Server(const Server &src);
 	Server &operator=(const Server &src);
 	~Server();

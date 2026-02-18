@@ -1,0 +1,84 @@
+#ifndef CONFIG_HPP
+#define CONFIG_HPP
+
+#include <fstream>
+#include <map>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "../inc/utils_print.hpp"
+
+struct RouteConfig
+{
+	std::string				 path;
+	std::vector<std::string> allowed_methods;
+	std::string				 root;
+	std::string				 index;
+	bool					 autoindex;
+	std::string				 upload_store;
+	std::string				 redirect_url;
+	int						 redirect_code;
+	std::string				 cgi_extension;
+	std::string				 cgi_path;
+
+	RouteConfig();
+};
+
+struct ServerConfig
+{
+	std::string				   host;
+	int						   port;
+	std::vector<std::string>   server_names;
+	std::map<int, std::string> error_pages;
+	size_t					   client_max_body_size;
+	std::vector<RouteConfig>   routes;
+
+	ServerConfig();
+};
+
+class Config
+{
+  private:
+	ServerConfig					server_;
+	std::string						error_;
+
+	/////////////////////////////////////////////////////////// Parsing utils //
+	static std::vector<std::string> tokenize(const std::string &line);
+	static std::string				clean_line(const std::string &line);
+
+	bool							parse_server_block(std::ifstream &file);
+	bool							parse_location_block(std::ifstream	   &file,
+														 const std::string &path,
+														 RouteConfig	   &out);
+	bool							parse_directive(ServerConfig				   &srv,
+													const std::vector<std::string> &words);
+	bool							parse_route_directive(RouteConfig					 &route,
+														  const std::vector<std::string> &words);
+
+	////////////////////////////////////////////////////////////// Validation //
+	bool							validate();
+	bool		parse_size(const std::string &value, size_t &out);
+	bool		parse_listen(const std::string &value, ServerConfig &srv);
+
+	///////////////////////////////////////////////////////////////// Helpers //
+	static bool read_next_line(std::ifstream &file, std::string &out);
+	bool expect_open_brace(std::ifstream &file, const std::string &context);
+	bool expect_args(const std::vector<std::string> &words,
+					 size_t							 min,
+					 const std::string				&directive);
+
+  public:
+	///////////////////////////////////////////////// Canonical Orthodox Form //
+	Config();
+	Config(const Config &src);
+	Config &operator=(const Config &src);
+	~Config();
+
+	////////////////////////////////////////////////////////////////// Public //
+	bool				parse(const std::string &filepath);
+	const ServerConfig &get_server() const;
+	const std::string  &error() const;
+};
+
+#endif

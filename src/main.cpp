@@ -1,20 +1,22 @@
 #include "../inc/webserver.hpp"
 
-int main(void)
+int main(int argc, char **argv)
 {
-	// eprint("Please make sure this line is commended.");
 	init_signals();
 
-	// test_http_parser();
+	std::string config_path;
+	Config		config;
 
-	std::map<int, std::string> error_pages;
-	error_pages[400] = "files/error_400.html";
-	error_pages[404] = "files/error_404.html";
-	error_pages[405] = "files/error_405.html";
-	error_pages[500] = "files/error_500.html";
-	HTTPHandler::set_error_pages(error_pages);
+	if (!init_args(argc, argv, config_path)
+		|| !init_config(config_path, config))
+	{
+		return (42);
+	}
 
-	Server server(8080);
+	const ServerConfig &parsed_config = config.get_server();
+	HTTPHandler::set_error_pages(parsed_config.error_pages);
+
+	Server server(parsed_config);
 	server.start();
 
 	dprint("end of main");

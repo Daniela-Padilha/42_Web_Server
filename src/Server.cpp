@@ -3,12 +3,18 @@
 #include "../inc/HTTPHandler.hpp"
 #include "../inc/HTTPResponse.hpp"
 
-Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
+static const int	MAX_PENDING_CONNECTIONS = 10;
+static const size_t READ_BUFFER_SIZE		= 4096;
+static const int	POLL_INDEFINITE			= -1;
+
+Server::Server(const ServerConfig &config) :
+	server_fd_(socket(AF_INET, SOCK_STREAM, 0)),
+	config_(config)
 {
 	// create server socket
 	// AF_INET (address family for IPv4),
 	// SOCK_STREAM (socket type using TCP/IP)
-	if (serverFd_ < 0)
+	if (server_fd_ < 0)
 	{
 		std::cerr << "Error: socket creation failed: " << strerror(errno)
 				  << '\n';
@@ -16,44 +22,45 @@ Server::Server(int port) : serverFd_(socket(AF_INET, SOCK_STREAM, 0))
 	}
 
 	// create struct with local address info
-	addr_.sin_family	  = AF_INET;	 // address family
-	addr_.sin_addr.s_addr = INADDR_ANY;	 // IP address (0.0.0.0)
-	addr_.sin_port		  = htons(port); // port nbr in network byte order
+	addr_.sin_family	  = AF_INET;			// address family
+	addr_.sin_addr.s_addr = INADDR_ANY;			// IP address (0.0.0.0)
+	addr_.sin_port		  = htons(config.port); // port from config
 
-	set_reuse_addr(serverFd_);
+	set_reuse_addr(server_fd_);
 
 	// choose address + port that server will use
-	if (bind(serverFd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
+	if (bind(server_fd_, (sockaddr *) &addr_, sizeof(addr_)) < 0)
 	{
 		std::cerr << "Error: bind failed: " << strerror(errno) << '\n';
-		close(serverFd_);
-		serverFd_ = -1;
+		close(server_fd_);
+		server_fd_ = -1;
 		return;
 	}
 	// get server ready for incoming connection attempts
-	if (listen(serverFd_, 10) < 0)
+	if (listen(server_fd_, MAX_PENDING_CONNECTIONS) < 0)
 	{
 		std::cerr << "Error: listen failed: " << strerror(errno) << '\n';
-		close(serverFd_);
-		serverFd_ = -1;
+		close(server_fd_);
+		server_fd_ = -1;
 		return;
 	}
 
 	// init server poll
-	pollfd serverPoll;
-	serverPoll.fd	   = serverFd_;
-	serverPoll.events  = POLLIN;
-	serverPoll.revents = 0;
-	pollFds_.push_back(serverPoll);
+	pollfd server_poll;
+	server_poll.fd		= server_fd_;
+	server_poll.events	= POLLIN;
+	server_poll.revents = 0;
+	poll_fds_.push_back(server_poll);
 
-	set_non_blocking(serverFd_);
+	set_non_blocking(server_fd_);
 }
 
 Server::Server(const Server &src) :
-	serverFd_(src.serverFd_),
+	server_fd_(src.server_fd_),
 	addr_(src.addr_),
 	clients_(src.clients_),
-	pollFds_(src.pollFds_)
+	poll_fds_(src.poll_fds_),
+	config_(src.config_)
 {
 }
 
@@ -61,10 +68,11 @@ Server &Server::operator=(const Server &src)
 {
 	if (this != &src)
 	{
-		this->serverFd_ = src.serverFd_;
-		this->addr_		= src.addr_;
-		this->clients_	= src.clients_;
-		this->pollFds_	= src.pollFds_;
+		this->server_fd_ = src.server_fd_;
+		this->addr_		 = src.addr_;
+		this->clients_	 = src.clients_;
+		this->poll_fds_	 = src.poll_fds_;
+		this->config_	 = src.config_;
 	}
 	return *this;
 }
@@ -76,15 +84,15 @@ Server::~Server()
 	{
 		close(it->first);
 	}
-	if (serverFd_ != -1)
+	if (server_fd_ != -1)
 	{
-		close(serverFd_);
+		close(server_fd_);
 	}
 }
 
 void Server::start()
 {
-	if (serverFd_ == -1)
+	if (server_fd_ == -1)
 	{
 		return;
 	}
@@ -96,7 +104,7 @@ void Server::start()
 		int ready = 0;
 
 		// setup poll to sleep until an event occurs
-		ready = poll(&pollFds_[0], pollFds_.size(), -1);
+		ready = poll(&poll_fds_[0], poll_fds_.size(), POLL_INDEFINITE);
 		if (ready < 0)
 		{
 			if (errno == EINTR)
@@ -107,12 +115,12 @@ void Server::start()
 			break;
 		}
 		// check which fd had an event, if is ready for reading
-		for (size_t i = 0; i < pollFds_.size();)
+		for (size_t i = 0; i < poll_fds_.size();)
 		{
 			// when client disconnects
-			if ((pollFds_[i].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
+			if ((poll_fds_[i].revents & (POLLHUP | POLLERR | POLLNVAL)) != 0)
 			{
-				if (pollFds_[i].fd != serverFd_)
+				if (poll_fds_[i].fd != server_fd_)
 				{
 					remove_client(i);
 					continue;
@@ -120,21 +128,21 @@ void Server::start()
 			}
 
 			// when client tries to connect
-			if ((pollFds_[i].revents & POLLIN) != 0)
+			if ((poll_fds_[i].revents & POLLIN) != 0)
 			{
-				if (pollFds_[i].fd == serverFd_)
+				if (poll_fds_[i].fd == server_fd_)
 				{
 					accept_client();
 				}
 				else
 				{
-					Client *client = get_client(pollFds_[i].fd);
+					Client *client = get_client(poll_fds_[i].fd);
 					if (client == 0)
 					{
 						i++;
 						continue;
 					}
-					char buffer[4096];
+					char buffer[READ_BUFFER_SIZE];
 					int	 bytes = read(client->get_fd(), buffer, sizeof(buffer));
 					if (bytes == 0)
 					{
@@ -170,16 +178,19 @@ void Server::start()
 							HTTPResponse response = HTTPResponse::error_400(
 								HTTPHandler::get_error_page(400));
 							client->set_response(response.to_string());
-							pollFds_[i].events |= POLLOUT;
+							poll_fds_[i].events |= POLLOUT;
 							client->clear_buffer();
 						}
 						else if (complete)
 						{
-							HTTPHandler	 handler;
+							const RouteConfig *route
+								= match_route(req.get_request_target());
 							HTTPResponse response
-								= HTTPHandler::handle_request(req);
+								= HTTPHandler::handle_request(req,
+															  route,
+															  config_);
 							client->set_response(response.to_string());
-							pollFds_[i].events |= POLLOUT;
+							poll_fds_[i].events |= POLLOUT;
 							client->clear_buffer();
 						}
 						// else: body not fully received yet — keep buffer,
@@ -189,9 +200,9 @@ void Server::start()
 			}
 
 			// when client is ready to write
-			if ((pollFds_[i].revents & POLLOUT) != 0)
+			if ((poll_fds_[i].revents & POLLOUT) != 0)
 			{
-				Client *client = get_client(pollFds_[i].fd);
+				Client *client = get_client(poll_fds_[i].fd);
 				if ((client != 0) && !client->get_response().empty())
 				{
 					int sent = send(client->get_fd(),
@@ -207,7 +218,7 @@ void Server::start()
 						dprint("Server: Sent " << sent << " bytes to client");
 					}
 					client->clear_response();
-					pollFds_[i].events &= ~POLLOUT;
+					poll_fds_[i].events &= ~POLLOUT;
 
 					// For now, close connection after sending response
 					remove_client(i);
@@ -216,7 +227,7 @@ void Server::start()
 			}
 
 			// clear handled event
-			pollFds_[i].revents = 0;
+			poll_fds_[i].revents = 0;
 			i++;
 		}
 	}
@@ -226,13 +237,13 @@ void Server::accept_client()
 {
 	// client info
 	sockaddr_in client_addr;
-	int			client_fd_ = 0;
+	int			client_fd  = 0;
 	socklen_t	client_len = 0;
 
 	// waits a connection, when it arrives, opens a new socket to communicate
 	client_len = sizeof(client_addr);
-	client_fd_ = accept(serverFd_, (sockaddr *) &client_addr, &client_len);
-	if (client_fd_ < 0)
+	client_fd  = accept(server_fd_, (sockaddr *) &client_addr, &client_len);
+	if (client_fd < 0)
 	{
 		if (errno != EAGAIN && errno != EWOULDBLOCK)
 		{
@@ -240,24 +251,24 @@ void Server::accept_client()
 		}
 		return;
 	}
-	set_non_blocking(client_fd_);
-	clients_.insert(std::make_pair(client_fd_, Client(client_fd_)));
+	set_non_blocking(client_fd);
+	clients_.insert(std::make_pair(client_fd, Client(client_fd)));
 
 	// init client poll
-	pollfd clientPoll;
-	clientPoll.fd	   = client_fd_;
-	clientPoll.events  = POLLIN;
-	clientPoll.revents = 0;
-	pollFds_.push_back(clientPoll);
+	pollfd client_poll;
+	client_poll.fd		= client_fd;
+	client_poll.events	= POLLIN;
+	client_poll.revents = 0;
+	poll_fds_.push_back(client_poll);
 
-	std::cout << "Client (fd=" << client_fd_ << ") connected to server!\n";
+	std::cout << "Client (fd=" << client_fd << ") connected to server!\n";
 }
 
 void Server::remove_client(size_t index)
 {
 	int fd = 0;
 
-	fd = pollFds_[index].fd;
+	fd = poll_fds_[index].fd;
 	std::cout << "Client (fd=" << fd << ") disconnected\n";
 	close(fd);
 
@@ -265,7 +276,7 @@ void Server::remove_client(size_t index)
 	clients_.erase(fd);
 
 	// remove from poll vector
-	pollFds_.erase(pollFds_.begin() + index);
+	poll_fds_.erase(poll_fds_.begin() + index);
 }
 
 void Server::set_non_blocking(int fd)
@@ -303,4 +314,29 @@ Client *Server::get_client(int fd)
 		return NULL;
 	}
 	return &it->second;
+}
+
+const RouteConfig *Server::match_route(const std::string &uri) const
+{
+	const RouteConfig *best_match  = NULL;
+	size_t			   best_length = 0;
+
+	for (size_t i = 0; i < config_.routes.size(); i++)
+	{
+		const RouteConfig &route = config_.routes[i];
+		if (uri.compare(0, route.path.size(), route.path) == 0)
+		{
+			if (uri.size() == route.path.size() || uri[route.path.size()] == '/'
+				|| route.path == "/")
+			{
+				if (route.path.size() > best_length)
+				{
+					best_length = route.path.size();
+					best_match	= &route;
+				}
+			}
+		}
+	}
+
+	return best_match;
 }
