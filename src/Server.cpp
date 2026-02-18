@@ -167,7 +167,8 @@ void Server::start()
 
 						if (req.is_error())
 						{
-							HTTPResponse response = HTTPResponse::error_400();
+							HTTPResponse response = HTTPResponse::error_400(
+								HTTPHandler::get_error_page(400));
 							client->set_response(response.to_string());
 							pollFds_[i].events |= POLLOUT;
 							client->clear_buffer();

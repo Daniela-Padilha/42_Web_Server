@@ -1,4 +1,24 @@
 #include "../inc/HTTPResponse.hpp"
+#include "../inc/utils_print.hpp"
+
+std::string HTTPResponse::load_error_page(const std::string &page_path,
+										  const std::string &fallback)
+{
+	if (page_path.empty())
+	{
+		return fallback;
+	}
+	std::ifstream file(page_path.c_str(), std::ios::binary);
+	if (!file.is_open())
+	{
+		dprint("HTTPResponse: Cannot open error page: " << page_path);
+		return fallback;
+	}
+	std::string content((std::istreambuf_iterator<char>(file)),
+						std::istreambuf_iterator<char>());
+	file.close();
+	return content;
+}
 
 HTTPResponse::HTTPResponse()
 {
@@ -72,38 +92,38 @@ std::string HTTPResponse::to_string() const
 	return build_response();
 }
 
-HTTPResponse HTTPResponse::error_400()
+HTTPResponse HTTPResponse::error_400(const std::string &page_path)
 {
 	HTTPResponse res;
 	res.set_status(400, "Bad Request");
-	res.set_body("400 Bad Request");
+	res.set_body(load_error_page(page_path, "400 Bad Request"));
 	res.set_header("Content-Type", "text/html");
 	return res;
 }
 
-HTTPResponse HTTPResponse::error_404()
+HTTPResponse HTTPResponse::error_404(const std::string &page_path)
 {
 	HTTPResponse res;
 	res.set_status(404, "Not Found");
-	res.set_body("404 Not Found");
+	res.set_body(load_error_page(page_path, "404 Not Found"));
 	res.set_header("Content-Type", "text/html");
 	return res;
 }
 
-HTTPResponse HTTPResponse::error_405()
+HTTPResponse HTTPResponse::error_405(const std::string &page_path)
 {
 	HTTPResponse res;
 	res.set_status(405, "Method Not Allowed");
-	res.set_body("405 Method Not Allowed");
+	res.set_body(load_error_page(page_path, "405 Method Not Allowed"));
 	res.set_header("Content-Type", "text/html");
 	return res;
 }
 
-HTTPResponse HTTPResponse::error_500()
+HTTPResponse HTTPResponse::error_500(const std::string &page_path)
 {
 	HTTPResponse res;
 	res.set_status(500, "Internal Server Error");
-	res.set_body("500 Internal Server Error");
+	res.set_body(load_error_page(page_path, "500 Internal Server Error"));
 	res.set_header("Content-Type", "text/html");
 	return res;
 }

@@ -1,6 +1,7 @@
 #ifndef HTTPRESPONSE_HPP
 #define HTTPRESPONSE_HPP
 
+#include <fstream>
 #include <map>
 #include <sstream>
 #include <string>
@@ -30,15 +31,19 @@ class HTTPResponse
 	std::string to_string() const;
 
 	////////////////////////////////////////////////////////////// Code pages //
-	static HTTPResponse error_400();
-	static HTTPResponse error_404();
-	static HTTPResponse error_405();
-	static HTTPResponse error_500();
+	static HTTPResponse error_400(const std::string &page_path = "");
+	static HTTPResponse error_404(const std::string &page_path = "");
+	static HTTPResponse error_405(const std::string &page_path = "");
+	static HTTPResponse error_500(const std::string &page_path = "");
 	static HTTPResponse success_200(const std::string &body,
 									const std::string &content_type);
 	static HTTPResponse success_201(const std::string &body,
 									const std::string &content_type);
 	static HTTPResponse success_204();
+
+  private:
+	static std::string load_error_page(const std::string &page_path,
+									   const std::string &fallback);
 };
 
 #endif

@@ -1,9 +1,27 @@
 #include "../inc/HTTPHandler.hpp"
 
-static const std::string STATIC_FILES_DIR = "files";
-static const std::string UPLOADS_DIR	  = "uploads";
+static const std::string   STATIC_FILES_DIR = "files";
+static const std::string   UPLOADS_DIR		= "uploads";
 
-HTTPResponse			 HTTPHandler::handle_request(const HTTPRequest &request)
+std::map<int, std::string> HTTPHandler::error_pages_;
+
+void HTTPHandler::set_error_pages(const std::map<int, std::string> &pages)
+{
+	error_pages_ = pages;
+}
+
+std::string HTTPHandler::get_error_page(int status_code)
+{
+	std::map<int, std::string>::const_iterator it
+		= error_pages_.find(status_code);
+	if (it != error_pages_.end())
+	{
+		return it->second;
+	}
+	return "";
+}
+
+HTTPResponse HTTPHandler::handle_request(const HTTPRequest &request)
 {
 	const std::string &method = request.get_method();
 
@@ -23,7 +41,7 @@ HTTPResponse			 HTTPHandler::handle_request(const HTTPRequest &request)
 		return handle_delete(request);
 	}
 
-	return HTTPResponse::error_405();
+	return HTTPResponse::error_405(get_error_page(405));
 }
 
 HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
@@ -43,7 +61,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
 	if (stat(file_path.c_str(), &file_stat) < 0)
 	{
 		dprint("HTTPHandler: File not found: " << file_path);
-		return HTTPResponse::error_404();
+		return HTTPResponse::error_404(get_error_page(404));
 	}
 
 	if (S_ISDIR(file_stat.st_mode))
@@ -55,7 +73,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
 		}
 		else
 		{
-			return HTTPResponse::error_404();
+			return HTTPResponse::error_404(get_error_page(404));
 		}
 	}
 
@@ -63,7 +81,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request)
 	if (!file)
 	{
 		dprint("HTTPHandler: Cannot open file: " << file_path);
-		return HTTPResponse::error_500();
+		return HTTPResponse::error_500(get_error_page(500));
 	}
 
 	std::string body((std::istreambuf_iterator<char>(file)),
@@ -171,7 +189,7 @@ HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request)
 
 	if (request_target == "/")
 	{
-		return HTTPResponse::error_400();
+		return HTTPResponse::error_400(get_error_page(400));
 	}
 
 	std::string file_path = STATIC_FILES_DIR + request_target;
@@ -182,18 +200,18 @@ HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request)
 	if (stat(file_path.c_str(), &file_stat) < 0)
 	{
 		dprint("HTTPHandler: File not found for deletion: " << file_path);
-		return HTTPResponse::error_404();
+		return HTTPResponse::error_404(get_error_page(404));
 	}
 
 	if (S_ISDIR(file_stat.st_mode))
 	{
-		return HTTPResponse::error_400();
+		return HTTPResponse::error_400(get_error_page(400));
 	}
 
 	if (unlink(file_path.c_str()) < 0)
 	{
 		dprint("HTTPHandler: Failed to delete file: " << strerror(errno));
-		return HTTPResponse::error_500();
+		return HTTPResponse::error_500(get_error_page(500));
 	}
 
 	dprint("HTTPHandler: File deleted: " << file_path);

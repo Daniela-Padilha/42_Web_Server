@@ -8,6 +8,7 @@
 #include <sys/socket.h> //socket
 #include <unistd.h>		//close
 
+#include "../inc/HTTPHandler.hpp"
 #include "../inc/HTTPRequest.hpp"
 #include "../inc/Server.hpp"
 #include "../inc/signals.hpp"
