@@ -5,7 +5,8 @@
 
 static const int	MAX_PENDING_CONNECTIONS = 10;
 static const size_t READ_BUFFER_SIZE		= 4096;
-static const int	POLL_INDEFINITE			= -1;
+static const int	POLL_TIMEOUT			= 1000;
+static const double CLIENT_TIMEOUT			= 60.0;
 
 Server::Server(const ServerConfig &config) :
 	server_fd_(socket(AF_INET, SOCK_STREAM, 0)),
@@ -105,7 +106,7 @@ void Server::start()
 		int ready = 0;
 
 		// setup poll to sleep until an event occurs
-		ready = poll(&poll_fds_[0], poll_fds_.size(), POLL_INDEFINITE);
+		ready = poll(&poll_fds_[0], poll_fds_.size(), POLL_TIMEOUT);
 		if (ready < 0)
 		{
 			if (errno == EINTR)
@@ -133,6 +134,26 @@ void Server::start()
 			// clear handled event
 			poll_fds_[idx].revents = 0;
 			idx++;
+		}
+
+		// check timeouts
+		time_t now = time(NULL);
+		for (size_t i = 0; i < poll_fds_.size();)
+		{
+			if (poll_fds_[i].fd == server_fd_)
+			{
+				i++;
+				continue;
+			}
+			Client *clnt = get_client(poll_fds_[i].fd);
+			if ((clnt != 0)
+				&& difftime(now, clnt->get_last_activity()) > CLIENT_TIMEOUT)
+			{
+				std::cout << "Client (fd=" << clnt->get_fd() << ") timed out\n";
+				remove_client(i);
+				continue;
+			}
+			i++;
 		}
 	}
 }
@@ -174,6 +195,8 @@ void Server::handle_client_read(size_t &idx)
 		idx++;
 		return;
 	}
+	client->update_activity();
+
 	char	buffer[READ_BUFFER_SIZE];
 	ssize_t bytes = read(client->get_fd(), buffer, sizeof(buffer));
 	if (bytes == 0)
@@ -271,25 +294,35 @@ bool Server::handle_poll_output(size_t &idx)
 	{
 		return false;
 	}
-	ssize_t sent = send(client->get_fd(),
-						client->get_response().c_str(),
-						client->get_response().length(),
-						0);
+
+	const std::string &response	 = client->get_response();
+	size_t			   offset	 = client->get_response_offset();
+	size_t			   total_len = response.length();
+	size_t			   remaining = total_len - offset;
+
+	ssize_t			   sent
+		= send(client->get_fd(), response.c_str() + offset, remaining, 0);
 	if (sent < 0)
 	{
 		eprint("Server: Error sending data to client");
 		std::cerr << "Error sending data to client\n";
+		remove_client(idx);
+		return true;
 	}
-	else
-	{
-		dprint("Server: Sent " << sent << " bytes to client");
-	}
-	client->clear_response();
-	poll_fds_[idx].events &= ~POLLOUT;
+	client->advance_response_offset(sent);
+	client->update_activity();
+	dprint("Server: Sent " << sent << " bytes to client (total: "
+						   << offset + sent << "/" << total_len << ")");
 
-	// For now, close connection after sending response
-	remove_client(idx);
-	return true;
+	if (client->get_response_offset() >= total_len)
+	{
+		client->clear_response();
+		poll_fds_[idx].events &= ~POLLOUT;
+		remove_client(idx);
+		return true;
+	}
+
+	return false;
 }
 
 void Server::accept_client()

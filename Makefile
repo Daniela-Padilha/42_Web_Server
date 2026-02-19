@@ -30,6 +30,7 @@ SRCS			:=															\
 	src/HTTPHandler.cpp														\
 	src/test_http_parser.cpp												\
 	src/test_http_response.cpp												\
+	src/test_http_features.cpp												\
 	src/Client.cpp															\
 	src/Server.cpp															\
 	src/signals.cpp															\
@@ -307,7 +308,9 @@ test: check-guards fclean $(NAME)
 
 upload-delete: $(NAME)
 	@\
-	echo "==TESTS== $(GRAY)Starting upload and delte test...$(COR)"			; \
+	echo "==TESTS== $(GRAY)Starting upload and delete test...$(COR)"	; \
+	pkill -x $(NAME) || true											; \
+	rm -f server.pid													; \
 	mkdir -p uploads													; \
 	./$(NAME)  & echo $$! > server.pid					; \
 	sleep 2																; \

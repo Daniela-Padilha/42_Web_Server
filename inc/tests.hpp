@@ -1,6 +1,7 @@
 #ifndef TESTS_HPP
 #define TESTS_HPP
 
+#include "../inc/HTTPHandler.hpp"
 #include "../inc/HTTPRequest.hpp"
 #include "../inc/HTTPResponse.hpp"
 
@@ -43,5 +44,10 @@ bool test_response_error_500();
 bool test_response_redirect_301();
 bool test_response_redirect_302();
 bool test_response_error_page_from_file();
+
+void test_http_features();
+
+bool test_autoindex_generation();
+bool test_runtime_redirection();
 
 #endif

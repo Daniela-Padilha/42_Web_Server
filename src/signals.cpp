@@ -1,4 +1,5 @@
 #include "../inc/signals.hpp"
+#include <unistd.h>
 
 volatile sig_atomic_t g_looping = 1;
 
@@ -19,6 +20,6 @@ void				  init_signals()
 static void handle_signals(int sig)
 {
 	(void) sig;
-	std::cout << "  Signal received. Exiting...\n";
+	write(STDOUT_FILENO, "\nServer shutting down...\n", 25);
 	g_looping = 0;
 }

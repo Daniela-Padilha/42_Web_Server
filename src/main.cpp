@@ -7,6 +7,7 @@ int main(int argc, char **argv)
 	(void) argv;
 	test_http_parser();
 	test_http_response();
+	test_http_features();
 	return (EXIT_SUCCESS);
 #endif
 

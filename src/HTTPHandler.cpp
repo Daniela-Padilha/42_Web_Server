@@ -295,7 +295,9 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		}
 		else if (route.autoindex)
 		{
-			return generate_autoindex(file_path, request_target);
+			return generate_autoindex(file_path,
+									  strip_query_string(
+										  request.get_request_target()));
 		}
 		else
 		{
