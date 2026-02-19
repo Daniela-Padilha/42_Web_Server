@@ -37,6 +37,22 @@ static std::string strip_route_prefix(const std::string &uri,
 	return uri;
 }
 
+static void process_path_segment(std::vector<std::string> &segments,
+								 const std::string		  &segment)
+{
+	if (segment == "..")
+	{
+		if (!segments.empty())
+		{
+			segments.pop_back();
+		}
+	}
+	else if (segment != ".")
+	{
+		segments.push_back(segment);
+	}
+}
+
 static std::string sanitize_path(const std::string &path)
 {
 	std::vector<std::string> segments;
@@ -47,17 +63,7 @@ static std::string sanitize_path(const std::string &path)
 		{
 			if (!segment.empty())
 			{
-				if (segment == "..")
-				{
-					if (!segments.empty())
-					{
-						segments.pop_back();
-					}
-				}
-				else if (segment != ".")
-				{
-					segments.push_back(segment);
-				}
+				process_path_segment(segments, segment);
 				segment.clear();
 			}
 		}
@@ -68,17 +74,7 @@ static std::string sanitize_path(const std::string &path)
 	}
 	if (!segment.empty())
 	{
-		if (segment == "..")
-		{
-			if (!segments.empty())
-			{
-				segments.pop_back();
-			}
-		}
-		else if (segment != ".")
-		{
-			segments.push_back(segment);
-		}
+		process_path_segment(segments, segment);
 	}
 	std::string result = "/";
 	for (size_t i = 0; i < segments.size(); i++)
@@ -125,6 +121,21 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 		return HTTPResponse::error_404(get_error_page(404));
 	}
 
+	// handle redirection
+	if (route->redirect_code != 0)
+	{
+		dprint("HTTPHandler: Redirecting to " << route->redirect_url << " ("
+											  << route->redirect_code << ")");
+		if (route->redirect_code == 301)
+		{
+			return HTTPResponse::redirect_301(route->redirect_url);
+		}
+		if (route->redirect_code == 302)
+		{
+			return HTTPResponse::redirect_302(route->redirect_url);
+		}
+	}
+
 	// check allowed methods (HEAD is implicitly allowed wherever GET is)
 	if (!route->allowed_methods.empty())
 	{
@@ -154,10 +165,12 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 	{
 		max_body = route->client_max_body_size;
 	}
-	std::string cl = request.get_header_value("Content-Length");
-	if (!cl.empty() && max_body > 0)
+	std::string content_length_header
+		= request.get_header_value("Content-Length");
+	if (!content_length_header.empty() && max_body > 0)
 	{
-		size_t content_length = static_cast<size_t>(std::atol(cl.c_str()));
+		size_t content_length
+			= static_cast<size_t>(std::atol(content_length_header.c_str()));
 		if (content_length > max_body)
 		{
 			return HTTPResponse::error_413(get_error_page(413));
@@ -184,6 +197,55 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 	}
 
 	return HTTPResponse::error_405(get_error_page(405));
+}
+
+HTTPResponse HTTPHandler::generate_autoindex(const std::string &path,
+											 const std::string &uri)
+{
+	DIR			  *dir = NULL;
+	struct dirent *ent = NULL;
+	dir				   = opendir(path.c_str());
+	if (dir == NULL)
+	{
+		dprint("HTTPHandler: Failed to open directory for autoindex: " << path);
+		return HTTPResponse::error_404(get_error_page(404));
+	}
+
+	std::string body = "<html>\n<head><title>Index of " + uri
+					   + "</title></head>\n"
+						 "<body>\n<h1>Index of "
+					   + uri + "</h1><hr><pre>\n";
+
+	while ((ent = readdir(dir)) != NULL)
+	{
+		std::string name = ent->d_name;
+		if (name == ".")
+		{
+			continue;
+		}
+
+		std::string full_path = path;
+		if (full_path[full_path.size() - 1] != '/')
+		{
+			full_path += "/";
+		}
+		full_path += name;
+
+		struct stat stt;
+		std::string display_name = name;
+		if (stat(full_path.c_str(), &stt) == 0 && S_ISDIR(stt.st_mode))
+		{
+			display_name += "/";
+		}
+
+		body += "<a href=\"" + name;
+		body += (S_ISDIR(stt.st_mode) ? "/" : "");
+		body += "\">" + display_name + "</a>\n";
+	}
+	closedir(dir);
+
+	body += "</pre><hr></body>\n</html>";
+	return HTTPResponse::success_200(body, "text/html");
 }
 
 HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
@@ -213,11 +275,6 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		index_file = route.index;
 	}
 
-	if (request_target == "/")
-	{
-		request_target = "/" + index_file;
-	}
-
 	std::string file_path = root_dir + request_target;
 
 	dprint("HTTPHandler: GET file_path = " << file_path);
@@ -235,6 +292,10 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		if (stat(index_path.c_str(), &file_stat) == 0)
 		{
 			file_path = index_path;
+		}
+		else if (route.autoindex)
+		{
+			return generate_autoindex(file_path, request_target);
 		}
 		else
 		{

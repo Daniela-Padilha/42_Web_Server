@@ -31,6 +31,8 @@ class HTTPHandler
 												  const RouteConfig &route);
 	static HTTPResponse				  handle_delete(const HTTPRequest &request,
 													const RouteConfig &route);
+	static HTTPResponse generate_autoindex(const std::string &path,
+										   const std::string &uri);
 
   public:
 	///////////////////////////////////////////////// Canonical Orthodox Form //

@@ -357,71 +357,41 @@ bool Config::parse_route_directive(RouteConfig					  &route,
 
 	if (key == "root")
 	{
-		if (!expect_args(words, 2, "root"))
-		{
-			return false;
-		}
-		route.root = words[1];
-		dprint("Config::parse_route_directive: root " << words[1]);
+		return parse_route_string_directive(words, route.root, "root");
 	}
-	else if (key == "index")
+	if (key == "index")
 	{
-		if (!expect_args(words, 2, "index"))
-		{
-			return false;
-		}
-		route.index = words[1];
-		dprint("Config::parse_route_directive: index " << words[1]);
+		return parse_route_string_directive(words, route.index, "index");
 	}
-	else if (key == "autoindex")
+	if (key == "autoindex")
 	{
-		if (!parse_autoindex(route, words))
-		{
-			return false;
-		}
+		return parse_autoindex(route, words);
 	}
-	else if (key == "allow_methods")
+	if (key == "allow_methods")
 	{
-		if (!parse_allow_methods(route, words))
-		{
-			return false;
-		}
+		return parse_allow_methods(route, words);
 	}
-	else if (key == "return")
+	if (key == "return")
 	{
-		if (!parse_return(route, words))
-		{
-			return false;
-		}
+		return parse_return(route, words);
 	}
-	else if (key == "upload_store")
+	if (key == "upload_store")
 	{
-		if (!expect_args(words, 2, "upload_store"))
-		{
-			return false;
-		}
-		route.upload_store = words[1];
-		dprint("Config::parse_route_directive: upload_store " << words[1]);
+		return parse_route_string_directive(words,
+											route.upload_store,
+											"upload_store");
 	}
-	else if (key == "cgi_extension")
+	if (key == "cgi_extension")
 	{
-		if (!expect_args(words, 2, "cgi_extension"))
-		{
-			return false;
-		}
-		route.cgi_extension = words[1];
-		dprint("Config::parse_route_directive: cgi_extension " << words[1]);
+		return parse_route_string_directive(words,
+											route.cgi_extension,
+											"cgi_extension");
 	}
-	else if (key == "cgi_path")
+	if (key == "cgi_path")
 	{
-		if (!expect_args(words, 2, "cgi_path"))
-		{
-			return false;
-		}
-		route.cgi_path = words[1];
-		dprint("Config::parse_route_directive: cgi_path " << words[1]);
+		return parse_route_string_directive(words, route.cgi_path, "cgi_path");
 	}
-	else if (key == "client_max_body_size")
+	if (key == "client_max_body_size")
 	{
 		if (!expect_args(words, 2, "client_max_body_size"))
 		{
@@ -434,13 +404,24 @@ bool Config::parse_route_directive(RouteConfig					  &route,
 		route.has_client_max_body_size = true;
 		dprint("Config::parse_route_directive: client_max_body_size "
 			   << words[1]);
+		return true;
 	}
-	else
+
+	error_ = "unknown directive in location block: '" + key + "'";
+	eprint("Config::parse_route_directive: " << error_);
+	return false;
+}
+
+bool Config::parse_route_string_directive(const std::vector<std::string> &words,
+										  std::string					 &out,
+										  const std::string &directive)
+{
+	if (!expect_args(words, 2, directive))
 	{
-		error_ = "unknown directive in location block: '" + key + "'";
-		eprint("Config::parse_route_directive: " << error_);
 		return false;
 	}
+	out = words[1];
+	dprint("Config::parse_route_directive: " << directive << " " << words[1]);
 	return true;
 }
 

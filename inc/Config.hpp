@@ -63,11 +63,14 @@ class Config
 														const std::vector<std::string> &words);
 	bool							parse_return(RouteConfig					&route,
 												 const std::vector<std::string> &words);
+	bool parse_route_string_directive(const std::vector<std::string> &words,
+									  std::string					 &out,
+									  const std::string &directive);
 
 	////////////////////////////////////////////////////////////// Validation //
-	bool							validate();
-	bool		parse_size(const std::string &value, size_t &out);
-	bool		parse_listen(const std::string &value, ServerConfig &srv);
+	bool validate();
+	bool parse_size(const std::string &value, size_t &out);
+	bool parse_listen(const std::string &value, ServerConfig &srv);
 
 	///////////////////////////////////////////////////////////////// Helpers //
 	static bool read_next_line(std::ifstream &file, std::string &out);
