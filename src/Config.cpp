@@ -12,7 +12,9 @@ RouteConfig::RouteConfig() :
 	path("/"),
 	index("index.html"),
 	autoindex(false),
-	redirect_code(0)
+	redirect_code(0),
+	client_max_body_size(0),
+	has_client_max_body_size(false)
 {
 }
 
@@ -418,6 +420,20 @@ bool Config::parse_route_directive(RouteConfig					  &route,
 		}
 		route.cgi_path = words[1];
 		dprint("Config::parse_route_directive: cgi_path " << words[1]);
+	}
+	else if (key == "client_max_body_size")
+	{
+		if (!expect_args(words, 2, "client_max_body_size"))
+		{
+			return false;
+		}
+		if (!parse_size(words[1], route.client_max_body_size))
+		{
+			return false;
+		}
+		route.has_client_max_body_size = true;
+		dprint("Config::parse_route_directive: client_max_body_size "
+			   << words[1]);
 	}
 	else
 	{

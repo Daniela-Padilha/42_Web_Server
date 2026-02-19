@@ -1,5 +1,20 @@
 #include "../inc/tests.hpp"
 
+void test_http_response()
+{
+	dprint("Running HTTP Response Tests\n");
+
+	test_response_error_400();
+	test_response_error_403();
+	test_response_error_404();
+	test_response_error_405();
+	test_response_error_413();
+	test_response_error_500();
+	test_response_redirect_301();
+	test_response_redirect_302();
+	test_response_error_page_from_file();
+}
+
 static bool check_contains(const std::string &haystack,
 						   const std::string &needle,
 						   const std::string &label)
@@ -48,21 +63,6 @@ static bool test_error_response(const std::string &name,
 		std::cout << BG_RED << " KO " << RESET << " " << name << " failed\n";
 	}
 	return all_tests_passed;
-}
-
-void test_http_response()
-{
-	dprint("Running HTTP Response Tests\n");
-
-	test_response_error_400();
-	test_response_error_403();
-	test_response_error_404();
-	test_response_error_405();
-	test_response_error_413();
-	test_response_error_500();
-	test_response_redirect_301();
-	test_response_redirect_302();
-	test_response_error_page_from_file();
 }
 
 bool test_response_error_400()

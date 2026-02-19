@@ -21,6 +21,8 @@ struct RouteConfig
 	int						 redirect_code;
 	std::string				 cgi_extension;
 	std::string				 cgi_path;
+	size_t					 client_max_body_size;
+	bool					 has_client_max_body_size;
 
 	RouteConfig();
 };
