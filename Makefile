@@ -29,6 +29,7 @@ SRCS			:=															\
 	src/HTTPResponse.cpp													\
 	src/HTTPHandler.cpp														\
 	src/test_http_parser.cpp												\
+	src/test_http_response.cpp												\
 	src/Client.cpp															\
 	src/Server.cpp															\
 	src/signals.cpp															\

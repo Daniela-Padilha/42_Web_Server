@@ -6,6 +6,7 @@ int main(int argc, char **argv)
 	(void) argc;
 	(void) argv;
 	test_http_parser();
+	test_http_response();
 	return (EXIT_SUCCESS);
 #endif
 

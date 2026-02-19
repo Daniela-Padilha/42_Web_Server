@@ -2,6 +2,7 @@
 #define TESTS_HPP
 
 #include "../inc/HTTPRequest.hpp"
+#include "../inc/HTTPResponse.hpp"
 
 #include <cstring>
 #include <iostream>
@@ -30,5 +31,17 @@ bool test_chunked_with_extensions();
 bool test_chunked_with_trailers();
 bool test_chunked_invalid_hex();
 bool test_chunked_overrides_content_length();
+
+void test_http_response();
+
+bool test_response_error_400();
+bool test_response_error_403();
+bool test_response_error_404();
+bool test_response_error_405();
+bool test_response_error_413();
+bool test_response_error_500();
+bool test_response_redirect_301();
+bool test_response_redirect_302();
+bool test_response_error_page_from_file();
 
 #endif
