@@ -101,6 +101,15 @@ HTTPResponse HTTPResponse::error_400(const std::string &page_path)
 	return res;
 }
 
+HTTPResponse HTTPResponse::error_403(const std::string &page_path)
+{
+	HTTPResponse res;
+	res.set_status(403, "Forbidden");
+	res.set_body(load_error_page(page_path, "403 Forbidden"));
+	res.set_header("Content-Type", "text/html");
+	return res;
+}
+
 HTTPResponse HTTPResponse::error_404(const std::string &page_path)
 {
 	HTTPResponse res;
@@ -115,6 +124,15 @@ HTTPResponse HTTPResponse::error_405(const std::string &page_path)
 	HTTPResponse res;
 	res.set_status(405, "Method Not Allowed");
 	res.set_body(load_error_page(page_path, "405 Method Not Allowed"));
+	res.set_header("Content-Type", "text/html");
+	return res;
+}
+
+HTTPResponse HTTPResponse::error_413(const std::string &page_path)
+{
+	HTTPResponse res;
+	res.set_status(413, "Payload Too Large");
+	res.set_body(load_error_page(page_path, "413 Payload Too Large"));
 	res.set_header("Content-Type", "text/html");
 	return res;
 }
@@ -152,5 +170,25 @@ HTTPResponse HTTPResponse::success_204()
 {
 	HTTPResponse res;
 	res.set_status(204, "No Content");
+	return res;
+}
+
+HTTPResponse HTTPResponse::redirect_301(const std::string &url)
+{
+	HTTPResponse res;
+	res.set_status(301, "Moved Permanently");
+	res.set_header("Location", url);
+	res.set_body("<html><body><h1>301 Moved Permanently</h1></body></html>");
+	res.set_header("Content-Type", "text/html");
+	return res;
+}
+
+HTTPResponse HTTPResponse::redirect_302(const std::string &url)
+{
+	HTTPResponse res;
+	res.set_status(302, "Found");
+	res.set_header("Location", url);
+	res.set_body("<html><body><h1>302 Found</h1></body></html>");
+	res.set_header("Content-Type", "text/html");
 	return res;
 }

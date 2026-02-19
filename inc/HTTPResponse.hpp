@@ -32,14 +32,18 @@ class HTTPResponse
 
 	////////////////////////////////////////////////////////////// Code pages //
 	static HTTPResponse error_400(const std::string &page_path = "");
+	static HTTPResponse error_403(const std::string &page_path = "");
 	static HTTPResponse error_404(const std::string &page_path = "");
 	static HTTPResponse error_405(const std::string &page_path = "");
+	static HTTPResponse error_413(const std::string &page_path = "");
 	static HTTPResponse error_500(const std::string &page_path = "");
 	static HTTPResponse success_200(const std::string &body,
 									const std::string &content_type);
 	static HTTPResponse success_201(const std::string &body,
 									const std::string &content_type);
 	static HTTPResponse success_204();
+	static HTTPResponse redirect_301(const std::string &url);
+	static HTTPResponse redirect_302(const std::string &url);
 
   private:
 	static std::string load_error_page(const std::string &page_path,
