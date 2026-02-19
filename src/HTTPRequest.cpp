@@ -201,7 +201,17 @@ bool HTTPRequest::parse_body()
 	std::string content_length = get_header_value("Content-Length");
 	if (!content_length.empty())
 	{
-		size_t len		= std::atol(content_length.c_str());
+		size_t len = std::atol(content_length.c_str());
+
+		if (max_body_size_ > 0 && len > max_body_size_)
+		{
+			eprint("HTTPRequest: Content-Length "
+				   << len << " exceeds max body size " << max_body_size_);
+			body_too_large_ = true;
+			state_			= PARSSING_ERROR_;
+			return false;
+		}
+
 		size_t body_len = body_.length();
 
 		if (len > body_len)
@@ -369,6 +379,14 @@ bool HTTPRequest::parse_chunk_data()
 			   << chunk_remaining_);
 		return false;
 	}
+	if (max_body_size_ > 0 && body_.size() > max_body_size_)
+	{
+		eprint("HTTPRequest: Chunked body size "
+			   << body_.size() << " exceeds max body size " << max_body_size_);
+		body_too_large_ = true;
+		state_			= PARSSING_ERROR_;
+		return false;
+	}
 	return true;
 }
 
@@ -464,6 +482,16 @@ bool HTTPRequest::is_error() const
 	return state_ == PARSSING_ERROR_;
 }
 
+bool HTTPRequest::is_body_too_large() const
+{
+	return body_too_large_;
+}
+
+void HTTPRequest::set_max_body_size(size_t size)
+{
+	max_body_size_ = size;
+}
+
 //////////////////////////////////////////////////////////////////// clean up //
 void HTTPRequest::reset()
 {
@@ -477,6 +505,8 @@ void HTTPRequest::reset()
 	protocol_.clear();
 	headers_.clear();
 	body_.clear();
+	max_body_size_	= 0;
+	body_too_large_ = false;
 }
 
 ///////////////////////////////////////////////////// Canonical Orthodox Form //
@@ -484,7 +514,9 @@ HTTPRequest::HTTPRequest() :
 	state_(PARSSING_REQUEST_LINE_),
 	chunked_state_(CHUNK_SIZE_),
 	chunk_remaining_(0),
-	is_chunked_(false)
+	is_chunked_(false),
+	max_body_size_(0),
+	body_too_large_(false)
 {
 	dprint("HTTPRequest: Default Constructor");
 }
@@ -513,6 +545,8 @@ HTTPRequest &HTTPRequest::operator=(const HTTPRequest &other)
 	protocol_		 = other.protocol_;
 	headers_		 = other.headers_;
 	body_			 = other.body_;
+	max_body_size_	 = other.max_body_size_;
+	body_too_large_	 = other.body_too_large_;
 
 	return (*this);
 }

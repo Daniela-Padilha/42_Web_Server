@@ -66,6 +66,11 @@ void HTTPResponse::set_body(const std::string &body)
 	set_header("Content-Length", oss.str());
 }
 
+void HTTPResponse::clear_body()
+{
+	body_.clear();
+}
+
 std::string HTTPResponse::build_response() const
 {
 	std::ostringstream oss;

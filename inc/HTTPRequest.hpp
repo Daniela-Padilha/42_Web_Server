@@ -47,6 +47,10 @@ class HTTPRequest
 
 	std::string						   body_;
 
+	///////////////////////////////////////////////////////////// Body limits //
+	size_t							   max_body_size_;
+	bool							   body_too_large_;
+
 	///////////////////////////////////////////////////////////// Parse utils //
 	bool							   parse_request_line();
 	bool							   parse_headers();
@@ -79,6 +83,8 @@ class HTTPRequest
 	/////////////////////////////////////////////////////////////////// Utils //
 	bool			   parse(const std::string &buffer);
 	bool			   is_error() const;
+	bool			   is_body_too_large() const;
+	void			   set_max_body_size(size_t size);
 	void			   reset();
 };
 

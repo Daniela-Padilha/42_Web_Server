@@ -200,20 +200,57 @@ void Server::handle_client_read(size_t &idx)
 	dprint("Server: Full HTTP headers received for fd " << client->get_fd());
 
 	HTTPRequest req;
-	bool		complete = req.parse(client->get_buffer());
+	req.set_max_body_size(config_.client_max_body_size);
+	bool complete = req.parse(client->get_buffer());
 
 	if (req.is_error())
 	{
-		HTTPResponse response
-			= HTTPResponse::error_400(HTTPHandler::get_error_page(400));
+		HTTPResponse response;
+		if (req.is_body_too_large())
+		{
+			response
+				= HTTPResponse::error_413(HTTPHandler::get_error_page(413));
+		}
+		else
+		{
+			response
+				= HTTPResponse::error_400(HTTPHandler::get_error_page(400));
+		}
 		client->set_response(response.to_string());
 		poll_fds_[idx].events |= POLLOUT;
 		client->clear_buffer();
 	}
 	else if (complete)
 	{
-		const RouteConfig *route = match_route(req.get_request_target());
-		HTTPResponse	   response
+		std::string uri	 = req.get_request_target();
+		size_t		qpos = uri.find('?');
+		if (qpos != std::string::npos)
+		{
+			uri = uri.substr(0, qpos);
+		}
+		const RouteConfig *route = match_route(uri);
+
+		// Directory trailing-slash redirect:
+		// If the URI doesn't end with '/', check whether adding
+		// a slash would match a more specific route. If so, the
+		// client asked for a directory without the trailing slash
+		// and we must redirect with 301.
+		if (!uri.empty() && uri[uri.size() - 1] != '/')
+		{
+			const RouteConfig *slash_route = match_route(uri + "/");
+			if (slash_route != NULL
+				&& (route == NULL
+					|| slash_route->path.size() > route->path.size()))
+			{
+				HTTPResponse response = HTTPResponse::redirect_301(uri + "/");
+				client->set_response(response.to_string());
+				poll_fds_[idx].events |= POLLOUT;
+				client->clear_buffer();
+				return;
+			}
+		}
+
+		HTTPResponse response
 			= HTTPHandler::handle_request(req, route, config_);
 		client->set_response(response.to_string());
 		poll_fds_[idx].events |= POLLOUT;
@@ -351,7 +388,8 @@ const RouteConfig *Server::match_route(const std::string &uri) const
 		if (uri.compare(0, route.path.size(), route.path) == 0)
 		{
 			if (uri.size() == route.path.size() || uri[route.path.size()] == '/'
-				|| route.path == "/")
+				|| route.path == "/"
+				|| route.path[route.path.size() - 1] == '/')
 			{
 				if (route.path.size() > best_length)
 				{

@@ -286,17 +286,28 @@ test: check-guards fclean $(NAME)
 	" $(NAME) UPLOAD-DELETE TEST$(COR)"									; \
 	make re --silent													; \
 	trap '' INT TERM													; \
-	make upload-delete --silent											&& \
+	make upload-delete --silent											; \
 	RET2=$$?															; \
 	trap - INT TERM														; \
 	echo "$(COR)$(GRAY)=========================================="\
+	" $(NAME) TESTER$(COR)"												; \
+	./$(NAME) tester.conf & echo $$! > server.pid						; \
+	sleep 2																; \
+	trap '' INT TERM													; \
+	yes "" | ./tester http://localhost:8080								; \
+	RET3=$$?															; \
+	trap - INT TERM														; \
+	kill $$(cat server.pid) 2>/dev/null									; \
+	rm -f server.pid													; \
+	echo "$(COR)$(GRAY)=========================================="\
 	" $(NAME) TESTS END$(COR)"											; \
 	echo "$(COR)$(GREEN)       unit tests return value:$(COR) $$RET1"	; \
-	echo "$(COR)$(GREEN)up-download tests return value:$(COR) $$RET2"
+	echo "$(COR)$(GREEN)up-download tests return value:$(COR) $$RET2"	; \
+	echo "$(COR)$(GREEN)   provided tests return value:$(COR) $$RET3"
 
 upload-delete: $(NAME)
 	@\
-	echo "==TESTS== $(GRAY)Starting Integration Check...$(COR)"			; \
+	echo "==TESTS== $(GRAY)Starting upload and delte test...$(COR)"			; \
 	mkdir -p uploads													; \
 	./$(NAME)  & echo $$! > server.pid					; \
 	sleep 2																; \
@@ -321,8 +332,8 @@ upload-delete: $(NAME)
 	echo "==TESTS== $(GRAY)Waiting a moment...$(COR)"					; \
 	sleep 7																; \
 	echo "==TESTS== $(GRAY)Deleting file...$(COR)"						; \
-	if curl --path-as-is -s -o /dev/null -w "%{http_code}" -X DELETE \
-		http://localhost:8080/../uploads/test_upload.txt | grep -q "200"; then \
+	if curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+	http://localhost:8080/uploads/test_upload.txt | grep -q "200"; then \
 		echo "==TESTS== $(GREEN)Delete successful.$(COR)"				; \
 	else \
 		echo "==TESTS== $(ORANGE)Delete failed$(COR)"					; \

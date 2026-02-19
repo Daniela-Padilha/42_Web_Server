@@ -1,11 +1,96 @@
 #include "../inc/HTTPHandler.hpp"
 
-static const std::string   BOUNDARY_PREFIX	  = "boundary=";
-static const std::string   FILENAME_PREFIX	  = "filename=\"";
-static const std::string   HEADER_BODY_DELIM  = "\r\n\r\n";
-static const std::string   DEFAULT_ROOT_DIR	  = "files";
-static const std::string   DEFAULT_INDEX_FILE = "index.html";
-static const std::string   DEFAULT_UPLOAD_DIR = "uploads";
+static const std::string BOUNDARY_PREFIX	= "boundary=";
+static const std::string FILENAME_PREFIX	= "filename=\"";
+static const std::string HEADER_BODY_DELIM	= "\r\n\r\n";
+static const std::string DEFAULT_ROOT_DIR	= "files";
+static const std::string DEFAULT_INDEX_FILE = "index.html";
+static const std::string DEFAULT_UPLOAD_DIR = "uploads";
+
+/////////////////////////////////////////////////////////////// URI utilities //
+static std::string		 strip_query_string(const std::string &uri)
+{
+	size_t pos = uri.find('?');
+	if (pos != std::string::npos)
+	{
+		return uri.substr(0, pos);
+	}
+	return uri;
+}
+
+static std::string strip_route_prefix(const std::string &uri,
+									  const std::string &route_path)
+{
+	if (route_path == "/" || route_path.empty())
+	{
+		return uri;
+	}
+	if (uri.compare(0, route_path.size(), route_path) == 0)
+	{
+		std::string stripped = uri.substr(route_path.size());
+		if (stripped.empty() || stripped[0] != '/')
+		{
+			stripped = "/" + stripped;
+		}
+		return stripped;
+	}
+	return uri;
+}
+
+static std::string sanitize_path(const std::string &path)
+{
+	std::vector<std::string> segments;
+	std::string				 segment;
+	for (size_t i = 0; i < path.size(); ++i)
+	{
+		if (path[i] == '/')
+		{
+			if (!segment.empty())
+			{
+				if (segment == "..")
+				{
+					if (!segments.empty())
+					{
+						segments.pop_back();
+					}
+				}
+				else if (segment != ".")
+				{
+					segments.push_back(segment);
+				}
+				segment.clear();
+			}
+		}
+		else
+		{
+			segment += path[i];
+		}
+	}
+	if (!segment.empty())
+	{
+		if (segment == "..")
+		{
+			if (!segments.empty())
+			{
+				segments.pop_back();
+			}
+		}
+		else if (segment != ".")
+		{
+			segments.push_back(segment);
+		}
+	}
+	std::string result = "/";
+	for (size_t i = 0; i < segments.size(); i++)
+	{
+		result += segments[i];
+		if (i + 1 < segments.size())
+		{
+			result += "/";
+		}
+	}
+	return result;
+}
 
 std::map<int, std::string> HTTPHandler::error_pages_;
 
@@ -29,7 +114,6 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 										 const RouteConfig	*route,
 										 const ServerConfig &server)
 {
-	(void) server;
 	const std::string &method = request.get_method();
 
 	dprint("HTTPHandler: Handling " << method << " request for "
@@ -41,13 +125,18 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 		return HTTPResponse::error_404(get_error_page(404));
 	}
 
-	// check allowed methods
+	// check allowed methods (HEAD is implicitly allowed wherever GET is)
 	if (!route->allowed_methods.empty())
 	{
-		bool method_allowed = false;
+		bool		method_allowed = false;
+		std::string check_method   = method;
+		if (check_method == "HEAD")
+		{
+			check_method = "GET";
+		}
 		for (size_t i = 0; i < route->allowed_methods.size(); i++)
 		{
-			if (route->allowed_methods[i] == method)
+			if (route->allowed_methods[i] == check_method)
 			{
 				method_allowed = true;
 				break;
@@ -59,9 +148,31 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 		}
 	}
 
+	// enforce client_max_body_size (route-level overrides server)
+	size_t max_body = server.client_max_body_size;
+	if (route->has_client_max_body_size)
+	{
+		max_body = route->client_max_body_size;
+	}
+	std::string cl = request.get_header_value("Content-Length");
+	if (!cl.empty() && max_body > 0)
+	{
+		size_t content_length = static_cast<size_t>(std::atol(cl.c_str()));
+		if (content_length > max_body)
+		{
+			return HTTPResponse::error_413(get_error_page(413));
+		}
+	}
+
 	if (method == "GET")
 	{
 		return handle_get(request, *route);
+	}
+	if (method == "HEAD")
+	{
+		HTTPResponse resp = handle_get(request, *route);
+		resp.clear_body();
+		return resp;
 	}
 	if (method == "POST")
 	{
@@ -78,7 +189,10 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 									 const RouteConfig &route)
 {
-	std::string request_target = request.get_request_target();
+	std::string request_target
+		= strip_query_string(request.get_request_target());
+	request_target = strip_route_prefix(request_target, route.path);
+	request_target = sanitize_path(request_target);
 	std::string root_dir;
 	if (route.root.empty())
 	{
@@ -99,7 +213,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		index_file = route.index;
 	}
 
-	if (request_target == "/" || request_target == route.path)
+	if (request_target == "/")
 	{
 		request_target = "/" + index_file;
 	}
@@ -248,8 +362,11 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request,
 HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request,
 										const RouteConfig &route)
 {
-	const std::string &request_target = request.get_request_target();
-	std::string		   root_dir;
+	std::string request_target
+		= strip_query_string(request.get_request_target());
+	request_target = strip_route_prefix(request_target, route.path);
+	request_target = sanitize_path(request_target);
+	std::string root_dir;
 	if (route.root.empty())
 	{
 		root_dir = DEFAULT_ROOT_DIR;

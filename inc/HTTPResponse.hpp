@@ -26,6 +26,7 @@ class HTTPResponse
 	void		set_status(int status_code, const std::string &reason_phrase);
 	void		set_header(const std::string &key, const std::string &value);
 	void		set_body(const std::string &body);
+	void		clear_body();
 
 	///////////////////////////////////////////////////////////////// Getters //
 	std::string to_string() const;
