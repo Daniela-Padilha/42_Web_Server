@@ -12,9 +12,10 @@ class Client
 	std::string response_;
 	time_t		last_activity_;
 	size_t		response_offset_;
+	size_t		server_index_;
 
   public:
-	Client(int fd);
+	Client(int fd, size_t server_index);
 	Client(const Client &src);
 	Client &operator=(const Client &src);
 	~Client();
@@ -24,6 +25,7 @@ class Client
 	const std::string &get_response() const;
 	time_t			   get_last_activity() const;
 	size_t			   get_response_offset() const;
+	size_t			   get_server_index() const;
 
 	void			   update_activity();
 	void			   advance_response_offset(size_t bytes);

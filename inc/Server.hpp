@@ -20,33 +20,43 @@
 #include <unistd.h>
 #include <vector>
 
+struct ServerSocket
+{
+	int fd;
+	int port;
+
+	ServerSocket(int f, int p) : fd(f), port(p) {}
+};
+
 class Server
 {
   private:
-	int					  server_fd_;
-	sockaddr_in			  addr_;
-	std::map<int, Client> clients_;
-	std::vector<pollfd>	  poll_fds_;
-	ServerConfig		  config_;
+	std::vector<ServerSocket>	server_fds_;
+	sockaddr_in			  		addr_;
+	std::map<int, Client> 		clients_;
+	std::vector<pollfd>	  		poll_fds_;
+	std::vector<ServerConfig>	configs_;
 
 	static void			  set_non_blocking(int fd);
 	static void			  set_reuse_addr(int fd);
 	void				  remove_client(size_t index);
 	Client				 *get_client(int fd);
-	const RouteConfig	 *match_route(const std::string &uri) const;
+	const RouteConfig	 *match_route(const std::string &uri, const ServerConfig &config) const;
 	bool				  handle_poll_errors(size_t &idx);
 	bool				  handle_poll_input(size_t &idx);
+	bool				  isListeningSocket(int fd) const;
 	void				  handle_client_read(size_t &idx);
 	bool				  handle_poll_output(size_t &idx);
 
-  public:
-	Server(const ServerConfig &config);
 	Server(const Server &src);
 	Server &operator=(const Server &src);
+
+  public:
+	Server(const std::vector<ServerConfig> &configs);
 	~Server();
 
 	void start();
-	void accept_client();
+	void accept_client(size_t server_index);
 };
 
 #endif

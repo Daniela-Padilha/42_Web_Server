@@ -1,9 +1,10 @@
 #include "../inc/Client.hpp"
 
-Client::Client(int fd) :
+Client::Client(int fd, size_t server_index) :
 	fd_(fd),
 	last_activity_(time(NULL)),
-	response_offset_(0)
+	response_offset_(0),
+	server_index_(server_index)
 {
 }
 
@@ -56,6 +57,11 @@ time_t Client::get_last_activity() const
 size_t Client::get_response_offset() const
 {
 	return this->response_offset_;
+}
+
+size_t Client::get_server_index() const
+{
+	return this->server_index_;
 }
 
 void Client::update_activity()
