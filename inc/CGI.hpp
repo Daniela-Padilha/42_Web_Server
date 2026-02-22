@@ -4,10 +4,14 @@
 # include <vector>
 # include <string>
 # include <unistd.h>
+# include "HTTPRequest.hpp"
 
 class CGI {
 	private:
-		std::vector<std::string> env_;
+		std::vector<std::string> _env;
+		void	_setEnvironment();
+
+		const HTTPRequest& _request;
 
 	public:
 		CGI();
