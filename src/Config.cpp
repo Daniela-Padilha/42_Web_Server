@@ -22,6 +22,7 @@ RouteConfig::RouteConfig() :
 ServerConfig::ServerConfig() :
 	host("0.0.0.0"),
 	port(DEFAULT_PORT),
+	has_listen_(false),
 	client_max_body_size(DEFAULT_MAX_BODY_SIZE)
 {
 }
@@ -263,6 +264,13 @@ bool Config::parse_directive(ServerConfig					&srv,
 		{
 			return false;
 		}
+		if (srv.has_listen_)
+		{
+			error_ = "duplicate listen directive";
+			eprint("Config::parse_directive: " << error_);
+			return false;
+		}
+		srv.has_listen_ = true;
 		dprint("Config::parse_directive: listen " << words[1]);
 		return parse_listen(words[1], srv);
 	}
@@ -586,6 +594,24 @@ bool Config::validate()
 			}
 		}
 	}
+
+	for (size_t i = 0; i < servers_.size(); i++)
+	{
+		for (size_t j = i + 1; j < servers_.size(); j++)
+		{
+			if (servers_[i].host == servers_[j].host
+				&& servers_[i].port == servers_[j].port)
+			{
+				std::ostringstream msg;
+				msg << "duplicate listen: " << servers_[i].host << ":"
+					<< servers_[i].port;
+				error_ = msg.str();
+				eprint("Config::validate: " << error_);
+				return false;
+			}
+		}
+	}
+
 	dprint("Config::validate: configuration is valid");
 	return true;
 }

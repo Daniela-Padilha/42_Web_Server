@@ -19,20 +19,21 @@
 class HTTPHandler
 {
   private:
-	static std::map<int, std::string> error_pages_;
-
 	static std::string				  get_mime_type(const std::string &path);
 	static std::string				  url_decode(const std::string &value);
 
 	///////////////////////////////////////////////////////////////// Methods //
 	static HTTPResponse				  handle_get(const HTTPRequest &request,
-												 const RouteConfig &route);
+												 const RouteConfig &route,
+												 const ServerConfig &server);
 	static HTTPResponse				  handle_post(const HTTPRequest &request,
 												  const RouteConfig &route);
 	static HTTPResponse				  handle_delete(const HTTPRequest &request,
-													const RouteConfig &route);
+													const RouteConfig &route,
+												    const ServerConfig &server);
 	static HTTPResponse generate_autoindex(const std::string &path,
-										   const std::string &uri);
+										   const std::string &uri,
+										   const ServerConfig &server);
 
   public:
 	///////////////////////////////////////////////// Canonical Orthodox Form //
@@ -42,8 +43,7 @@ class HTTPHandler
 	~HTTPHandler();
 
 	///////////////////////////////////////////////////////////// Error pages //
-	static void		   set_error_pages(const std::map<int, std::string> &pages);
-	static std::string get_error_page(int status_code);
+	static std::string get_error_page(int status_code, const ServerConfig &server);
 
 	///////////////////////////////////////////////////////////////// Request //
 	static HTTPResponse handle_request(const HTTPRequest  &request,

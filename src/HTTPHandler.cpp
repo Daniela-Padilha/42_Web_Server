@@ -88,18 +88,11 @@ static std::string sanitize_path(const std::string &path)
 	return result;
 }
 
-std::map<int, std::string> HTTPHandler::error_pages_;
-
-void HTTPHandler::set_error_pages(const std::map<int, std::string> &pages)
-{
-	error_pages_ = pages;
-}
-
-std::string HTTPHandler::get_error_page(int status_code)
+std::string HTTPHandler::get_error_page(int status_code, const ServerConfig &server)
 {
 	std::map<int, std::string>::const_iterator it
-		= error_pages_.find(status_code);
-	if (it != error_pages_.end())
+		= server.error_pages.find(status_code);
+	if (it != server.error_pages.end())
 	{
 		return it->second;
 	}
@@ -118,7 +111,7 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 	if (route == NULL)
 	{
 		dprint("HTTPHandler: handle_request: no route match");
-		return HTTPResponse::error_404(get_error_page(404));
+		return HTTPResponse::error_404(get_error_page(404, server));
 	}
 
 	// handle redirection
@@ -155,7 +148,7 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 		}
 		if (!method_allowed)
 		{
-			return HTTPResponse::error_405(get_error_page(405));
+			return HTTPResponse::error_405(get_error_page(405, server));
 		}
 	}
 
@@ -173,17 +166,17 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 			= static_cast<size_t>(std::atol(content_length_header.c_str()));
 		if (content_length > max_body)
 		{
-			return HTTPResponse::error_413(get_error_page(413));
+			return HTTPResponse::error_413(get_error_page(413, server));
 		}
 	}
 
 	if (method == "GET")
 	{
-		return handle_get(request, *route);
+		return handle_get(request, *route, server);
 	}
 	if (method == "HEAD")
 	{
-		HTTPResponse resp = handle_get(request, *route);
+		HTTPResponse resp = handle_get(request, *route, server);
 		resp.clear_body();
 		return resp;
 	}
@@ -193,14 +186,14 @@ HTTPResponse HTTPHandler::handle_request(const HTTPRequest	&request,
 	}
 	if (method == "DELETE")
 	{
-		return handle_delete(request, *route);
+		return handle_delete(request, *route, server);
 	}
 
-	return HTTPResponse::error_405(get_error_page(405));
+	return HTTPResponse::error_405(get_error_page(405, server));
 }
 
 HTTPResponse HTTPHandler::generate_autoindex(const std::string &path,
-											 const std::string &uri)
+											 const std::string &uri, const ServerConfig &server)
 {
 	DIR			  *dir = NULL;
 	struct dirent *ent = NULL;
@@ -208,7 +201,7 @@ HTTPResponse HTTPHandler::generate_autoindex(const std::string &path,
 	if (dir == NULL)
 	{
 		dprint("HTTPHandler: Failed to open directory for autoindex: " << path);
-		return HTTPResponse::error_404(get_error_page(404));
+		return HTTPResponse::error_404(get_error_page(404, server));
 	}
 
 	std::string body = "<html>\n<head><title>Index of " + uri
@@ -249,7 +242,8 @@ HTTPResponse HTTPHandler::generate_autoindex(const std::string &path,
 }
 
 HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
-									 const RouteConfig &route)
+									 const RouteConfig &route,
+									 const ServerConfig &server)
 {
 	std::string request_target
 		= strip_query_string(request.get_request_target());
@@ -283,7 +277,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 	if (stat(file_path.c_str(), &file_stat) < 0)
 	{
 		dprint("HTTPHandler: File not found: " << file_path);
-		return HTTPResponse::error_404(get_error_page(404));
+		return HTTPResponse::error_404(get_error_page(404, server));
 	}
 
 	if (S_ISDIR(file_stat.st_mode))
@@ -297,11 +291,11 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		{
 			return generate_autoindex(file_path,
 									  strip_query_string(
-										  request.get_request_target()));
+										  request.get_request_target()), server);
 		}
 		else
 		{
-			return HTTPResponse::error_404(get_error_page(404));
+			return HTTPResponse::error_404(get_error_page(404, server));
 		}
 	}
 
@@ -309,7 +303,7 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 	if (!file)
 	{
 		dprint("HTTPHandler: Cannot open file: " << file_path);
-		return HTTPResponse::error_500(get_error_page(500));
+		return HTTPResponse::error_500(get_error_page(500, server));
 	}
 
 	std::string body((std::istreambuf_iterator<char>(file)),
@@ -423,7 +417,8 @@ HTTPResponse HTTPHandler::handle_post(const HTTPRequest &request,
 }
 
 HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request,
-										const RouteConfig &route)
+										const RouteConfig &route,
+									    const ServerConfig &server)
 {
 	std::string request_target
 		= strip_query_string(request.get_request_target());
@@ -441,7 +436,7 @@ HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request,
 
 	if (request_target == "/")
 	{
-		return HTTPResponse::error_400(get_error_page(400));
+		return HTTPResponse::error_400(get_error_page(400, server));
 	}
 
 	std::string file_path = root_dir + request_target;
@@ -452,18 +447,18 @@ HTTPResponse HTTPHandler::handle_delete(const HTTPRequest &request,
 	if (stat(file_path.c_str(), &file_stat) < 0)
 	{
 		dprint("HTTPHandler: File not found for deletion: " << file_path);
-		return HTTPResponse::error_404(get_error_page(404));
+		return HTTPResponse::error_404(get_error_page(404, server));
 	}
 
 	if (S_ISDIR(file_stat.st_mode))
 	{
-		return HTTPResponse::error_400(get_error_page(400));
+		return HTTPResponse::error_400(get_error_page(400, server));
 	}
 
 	if (unlink(file_path.c_str()) < 0)
 	{
 		dprint("HTTPHandler: Failed to delete file: " << strerror(errno));
-		return HTTPResponse::error_500(get_error_page(500));
+		return HTTPResponse::error_500(get_error_page(500, server));
 	}
 
 	dprint("HTTPHandler: File deleted: " << file_path);

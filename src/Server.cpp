@@ -47,7 +47,7 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 
 		set_non_blocking(fd);
 
-		server_fds_.push_back(ServerSocket(fd, configs[i].port));
+		server_fds_.push_back(ServerSocket(fd, configs[i].port, i));
 
 		// init server poll
 		pollfd server_poll;
@@ -181,13 +181,13 @@ bool Server::isListeningSocket(int fd) const
 void Server::handle_client_read(size_t &idx)
 {
 	Client *client = get_client(poll_fds_[idx].fd);
-	const ServerConfig &conf = configs_[client->get_server_index()];
 
 	if (client == 0)
 	{
 		idx++;
 		return;
 	}
+	const ServerConfig &conf = configs_[client->get_server_index()];
 	client->update_activity();
 
 	char	buffer[READ_BUFFER_SIZE];
@@ -225,12 +225,12 @@ void Server::handle_client_read(size_t &idx)
 		if (req.is_body_too_large())
 		{
 			response
-				= HTTPResponse::error_413(HTTPHandler::get_error_page(413));
+				= HTTPResponse::error_413(HTTPHandler::get_error_page(413, conf));
 		}
 		else
 		{
 			response
-				= HTTPResponse::error_400(HTTPHandler::get_error_page(400));
+				= HTTPResponse::error_400(HTTPHandler::get_error_page(400, conf));
 		}
 		client->set_response(response.to_string());
 		poll_fds_[idx].events |= POLLOUT;
@@ -318,8 +318,19 @@ bool Server::handle_poll_output(size_t &idx)
 	return false;
 }
 
-void Server::accept_client(size_t server_index)
+void Server::accept_client(int server_fd)
 {
+	// Find server index from fd
+	size_t server_index = 0;
+	for (size_t i = 0; i < server_fds_.size(); i++)
+	{
+		if (server_fds_[i].fd == server_fd)
+		{
+			server_index = server_fds_[i].index;
+			break;
+		}
+	}
+
 	// client info
 	sockaddr_in client_addr;
 	int			client_fd  = 0;

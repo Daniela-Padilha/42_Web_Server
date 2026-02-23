@@ -13,7 +13,8 @@ Client::Client(const Client &src) :
 	buffer_(src.buffer_),
 	response_(src.response_),
 	last_activity_(src.last_activity_),
-	response_offset_(src.response_offset_)
+	response_offset_(src.response_offset_),
+	server_index_(src.server_index_)
 {
 }
 
@@ -26,6 +27,7 @@ Client &Client::operator=(const Client &src)
 		this->response_		   = src.response_;
 		this->last_activity_   = src.last_activity_;
 		this->response_offset_ = src.response_offset_;
+		this->server_index_   = src.server_index_;
 	}
 	return *this;
 }

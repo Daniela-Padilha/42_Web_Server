@@ -22,10 +22,11 @@
 
 struct ServerSocket
 {
-	int fd;
-	int port;
+	int		fd;
+	int		port;
+	size_t	index;
 
-	ServerSocket(int f, int p) : fd(f), port(p) {}
+	ServerSocket(int f, int p, size_t i) : fd(f), port(p), index(i) {}
 };
 
 class Server
@@ -56,7 +57,7 @@ class Server
 	~Server();
 
 	void start();
-	void accept_client(size_t server_index);
+	void accept_client(int server_fd);
 };
 
 #endif

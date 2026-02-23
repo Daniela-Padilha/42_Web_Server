@@ -23,7 +23,6 @@ int main(int argc, char **argv)
 	}
 
 	std::vector<ServerConfig> parsed_config = config.get_server();
-	HTTPHandler::set_error_pages(parsed_config.error_pages);
 
 	Server server(parsed_config);
 	server.start();
