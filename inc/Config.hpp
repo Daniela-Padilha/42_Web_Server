@@ -42,14 +42,14 @@ struct ServerConfig
 class Config
 {
   private:
-	ServerConfig					server_;
+	std::vector<ServerConfig>		servers_;
 	std::string						error_;
 
 	/////////////////////////////////////////////////////////// Parsing utils //
 	static std::vector<std::string> tokenize(const std::string &line);
 	static std::string				clean_line(const std::string &line);
 
-	bool							parse_server_block(std::ifstream &file);
+	bool							parse_server_block(std::ifstream &file, ServerConfig &srv);
 	bool							parse_location_block(std::ifstream	   &file,
 														 const std::string &path,
 														 RouteConfig	   &out);
@@ -87,9 +87,9 @@ class Config
 	~Config();
 
 	////////////////////////////////////////////////////////////////// Public //
-	bool				parse(const std::string &filepath);
-	const ServerConfig &get_server() const;
-	const std::string  &error() const;
+	bool							parse(const std::string &filepath);
+	const std::vector<ServerConfig> &get_server() const;
+	const std::string  				&error() const;
 };
 
 #endif

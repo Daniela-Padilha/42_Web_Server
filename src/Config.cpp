@@ -31,7 +31,7 @@ Config::Config()
 {
 }
 
-Config::Config(const Config &src) : server_(src.server_), error_(src.error_)
+Config::Config(const Config &src) : servers_(src.servers_), error_(src.error_)
 {
 }
 
@@ -39,7 +39,7 @@ Config &Config::operator=(const Config &src)
 {
 	if (this != &src)
 	{
-		server_ = src.server_;
+		servers_ = src.servers_;
 	}
 	return *this;
 }
@@ -147,12 +147,6 @@ bool Config::parse(const std::string &filepath)
 
 		if (words[0] == "server")
 		{
-			if (found_server)
-			{
-				error_ = "only one server block is supported";
-				eprint("Config::parse: " << error_);
-				return false;
-			}
 			if (words.size() != 1)
 			{
 				error_ = "expected 'server' alone on its line";
@@ -165,10 +159,12 @@ bool Config::parse(const std::string &filepath)
 			}
 
 			dprint("Config::parse: entering server block");
-			if (!parse_server_block(file))
+			ServerConfig server;
+			if (!parse_server_block(file, server))
 			{
 				return false;
 			}
+			servers_.push_back(server);
 			found_server = true;
 			dprint("Config::parse: server block parsed successfully");
 		}
@@ -191,9 +187,9 @@ bool Config::parse(const std::string &filepath)
 	return validate();
 }
 
-const ServerConfig &Config::get_server() const
+const std::vector<ServerConfig> &Config::get_server() const
 {
-	return server_;
+	return servers_;
 }
 
 const std::string &Config::error() const
@@ -202,16 +198,14 @@ const std::string &Config::error() const
 }
 
 //////////////////////////////////////////////////////////////// Server Block //
-bool Config::parse_server_block(std::ifstream &file)
+bool Config::parse_server_block(std::ifstream &file, ServerConfig &srv)
 {
-	ServerConfig srv;
 	std::string	 trimmed;
 
 	while (read_next_line(file, trimmed))
 	{
 		if (trimmed == "}")
 		{
-			server_ = srv;
 			dprint("Config::parse_server_block: block closed");
 			return true;
 		}
@@ -559,33 +553,37 @@ bool Config::parse_size(const std::string &value, size_t &out)
 bool Config::validate()
 {
 	dprint("Config::validate: starting validation");
-	if (server_.port < MIN_PORT || server_.port > MAX_PORT)
+	for (size_t s = 0; s < servers_.size(); s++)
 	{
-		error_ = "port must be between 1 and 65535";
-		eprint("Config::validate: " << error_);
-		return false;
-	}
-
-	for (size_t i = 0; i < server_.routes.size(); i++)
-	{
-		const RouteConfig &route = server_.routes[i];
-
-		if (route.path.empty() || route.path[0] != '/')
+		const ServerConfig &srv = servers_[s];
+		if (srv.port < MIN_PORT || srv.port > MAX_PORT)
 		{
-			error_ = "route path must start with '/': '" + route.path + "'";
+			error_ = "port must be between 1 and 65535";
 			eprint("Config::validate: " << error_);
 			return false;
 		}
 
-		if (route.redirect_code != 0 && route.redirect_code != 301
-			&& route.redirect_code != 302)
+		for (size_t i = 0; i < srv.routes.size(); i++)
 		{
-			std::ostringstream msg;
-			msg << "redirect code must be 301 or 302, got "
-				<< route.redirect_code;
-			error_ = msg.str();
-			eprint("Config::validate: " << error_);
-			return false;
+			const RouteConfig &route = srv.routes[i];
+
+			if (route.path.empty() || route.path[0] != '/')
+			{
+				error_ = "route path must start with '/': '" + route.path + "'";
+				eprint("Config::validate: " << error_);
+				return false;
+			}
+
+			if (route.redirect_code != 0 && route.redirect_code != 301
+				&& route.redirect_code != 302)
+			{
+				std::ostringstream msg;
+				msg << "redirect code must be 301 or 302, got "
+					<< route.redirect_code;
+				error_ = msg.str();
+				eprint("Config::validate: " << error_);
+				return false;
+			}
 		}
 	}
 	dprint("Config::validate: configuration is valid");

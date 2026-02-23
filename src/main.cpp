@@ -17,7 +17,7 @@ int main(int argc, char **argv)
 	Config		config;
 
 	if (!init_args(argc, argv, config_path)
-		|| !init_5config(config_path, config))
+		|| !init_config(config_path, config))
 	{
 		return (EXIT_FAILURE);
 	}
