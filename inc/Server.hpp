@@ -48,8 +48,8 @@ class Server
 	void				  handle_client_read(size_t &idx);
 	bool				  handle_poll_output(size_t &idx);
 
-	Server(const Server &src);
-	Server &operator=(const Server &src);
+	Server(const Server &);
+	Server &operator=(const Server &);
 
   public:
 	Server(const std::vector<ServerConfig> &configs);

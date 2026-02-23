@@ -17,12 +17,12 @@ int main(int argc, char **argv)
 	Config		config;
 
 	if (!init_args(argc, argv, config_path)
-		|| !init_config(config_path, config))
+		|| !init_5config(config_path, config))
 	{
 		return (EXIT_FAILURE);
 	}
 
-	const ServerConfig &parsed_config = config.get_server();
+	std::vector<ServerConfig> parsed_config = config.get_server();
 	HTTPHandler::set_error_pages(parsed_config.error_pages);
 
 	Server server(parsed_config);

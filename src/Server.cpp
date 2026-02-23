@@ -58,10 +58,6 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 	}
 }
 
-Server::Server(const Server &src) {}
-
-Server &Server::operator=(const Server &src) {}
-
 Server::~Server()
 {
 	std::map<int, Client>::iterator it;
