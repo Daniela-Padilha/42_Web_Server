@@ -1,0 +1,20 @@
+#ifndef WEBSERVER_HPP
+#define WEBSERVER_HPP
+
+#include <cerrno> //errno
+#include <cstdlib>
+#include <cstring>
+#include <sstream>
+#include <sys/socket.h> //socket
+#include <unistd.h>		//close
+
+#include "../inc/Config.hpp"
+#include "../inc/HTTPHandler.hpp"
+#include "../inc/HTTPRequest.hpp"
+#include "../inc/Server.hpp"
+#include "../inc/init.hpp"
+#include "../inc/signals.hpp"
+#include "../inc/tests.hpp"
+#include "../inc/utils_print.hpp"
+
+#endif
