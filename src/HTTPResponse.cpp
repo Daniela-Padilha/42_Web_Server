@@ -69,6 +69,7 @@ void HTTPResponse::set_body(const std::string &body)
 void HTTPResponse::clear_body()
 {
 	body_.clear();
+	this->set_body("");
 }
 
 std::string HTTPResponse::build_response() const

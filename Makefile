@@ -1,4 +1,4 @@
-NAME			:= webserver.out
+NAME			:= webserver
 #NAME-BONUS		:= $(NAME)_bonus
 
 FORMATABLE		= $(HEADERS) $(SRCS)

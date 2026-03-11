@@ -9,7 +9,8 @@ static const int	POLL_TIMEOUT			= 1000;
 static const double CLIENT_TIMEOUT			= 60.0;
 
 Server::Server(const std::vector<ServerConfig> &configs) :
-	configs_(configs)
+	configs_(configs),
+	init_ok_(true)
 {
 	for (size_t i = 0; i < configs_.size(); i++)
 	{
@@ -17,7 +18,9 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 		if (fd < 0)
 		{
 			std::cerr << "Error: socket creation failed: " << strerror(errno)
-				 	 << '\n';
+					  << '\n';
+			cleanup_sockets_();
+			init_ok_ = false;
 			return;
 		}
 		addr_.sin_family	  = AF_INET;
@@ -27,12 +30,12 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 		set_reuse_addr(fd);
 
 		// choose address + port that server will use
-		if (bind(fd, reinterpret_cast<sockaddr *>(&addr_), sizeof(addr_))
-			< 0)
+		if (bind(fd, reinterpret_cast<sockaddr *>(&addr_), sizeof(addr_)) < 0)
 		{
 			std::cerr << "Error: bind failed: " << strerror(errno) << '\n';
 			close(fd);
-			fd = -1;
+			cleanup_sockets_();
+			init_ok_ = false;
 			return;
 		}
 
@@ -41,7 +44,8 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 		{
 			std::cerr << "Error: listen failed: " << strerror(errno) << '\n';
 			close(fd);
-			fd = -1;
+			cleanup_sockets_();
+			init_ok_ = false;
 			return;
 		}
 
@@ -56,6 +60,19 @@ Server::Server(const std::vector<ServerConfig> &configs) :
 		server_poll.revents = 0;
 		poll_fds_.push_back(server_poll);
 	}
+}
+
+void Server::cleanup_sockets_()
+{
+	for (size_t i = 0; i < server_fds_.size(); i++)
+	{
+		if (server_fds_[i].fd != -1)
+		{
+			close(server_fds_[i].fd);
+		}
+	}
+	server_fds_.clear();
+	poll_fds_.clear();
 }
 
 Server::~Server()
@@ -76,7 +93,7 @@ Server::~Server()
 
 void Server::start()
 {
-	if (server_fds_.empty())
+	if (!init_ok_)
 	{
 		return;
 	}
@@ -171,7 +188,8 @@ bool Server::handle_poll_input(size_t &idx)
 
 bool Server::isListeningSocket(int fd) const
 {
-	for (size_t i = 0; i < server_fds_.size(); i++) {
+	for (size_t i = 0; i < server_fds_.size(); i++)
+	{
 		if (server_fds_[i].fd == fd)
 			return true;
 	}
@@ -224,13 +242,13 @@ void Server::handle_client_read(size_t &idx)
 		HTTPResponse response;
 		if (req.is_body_too_large())
 		{
-			response
-				= HTTPResponse::error_413(HTTPHandler::get_error_page(413, conf));
+			response = HTTPResponse::error_413(
+				HTTPHandler::get_error_page(413, conf));
 		}
 		else
 		{
-			response
-				= HTTPResponse::error_400(HTTPHandler::get_error_page(400, conf));
+			response = HTTPResponse::error_400(
+				HTTPHandler::get_error_page(400, conf));
 		}
 		client->set_response(response.to_string());
 		poll_fds_[idx].events |= POLLOUT;
@@ -266,8 +284,7 @@ void Server::handle_client_read(size_t &idx)
 			}
 		}
 
-		HTTPResponse response
-			= HTTPHandler::handle_request(req, route, conf);
+		HTTPResponse response = HTTPHandler::handle_request(req, route, conf);
 		client->set_response(response.to_string());
 		poll_fds_[idx].events |= POLLOUT;
 		client->clear_buffer();
@@ -414,7 +431,8 @@ Client *Server::get_client(int fd)
 	return &it->second;
 }
 
-const RouteConfig *Server::match_route(const std::string &uri, const ServerConfig &config) const
+const RouteConfig *Server::match_route(const std::string  &uri,
+									   const ServerConfig &config) const
 {
 	const RouteConfig *best_match  = NULL;
 	size_t			   best_length = 0;

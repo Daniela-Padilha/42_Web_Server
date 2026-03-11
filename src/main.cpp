@@ -24,7 +24,11 @@ int main(int argc, char **argv)
 
 	std::vector<ServerConfig> parsed_config = config.get_server();
 
-	Server server(parsed_config);
+	Server					  server(parsed_config);
+	if (!server.is_ok())
+	{
+		return (EXIT_FAILURE);
+	}
 	server.start();
 
 	dprint("end of main");
