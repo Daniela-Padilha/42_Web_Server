@@ -1,0 +1,23 @@
+h1 {
+	text-align: center;
+}
+
+#subtitle {
+	text-align: center;
+}
+
+footer {
+	text-align: right;
+	font-size: small;
+}
+
+#img-div {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	height: 600px;
+}
+
+img {
+	width: 50%;
+}
