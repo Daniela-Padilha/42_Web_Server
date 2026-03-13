@@ -1,15 +1,185 @@
-h1 {
-	text-align: center;
+
+/* Reset */
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
 
-#subtitle {
-	text-align: center;
+/* Body */
+
+body{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:#0f172a;
+    color:#e2e8f0;
 }
 
-footer {
-	text-align: right;
-	font-size: small;
+/* Layout */
+
+.container{
+    max-width:900px;
+    margin:auto;
+    padding:40px 20px;
 }
+
+/* Header */
+
+header{
+    text-align:center;
+    margin-bottom:40px;
+}
+
+header h1{
+    font-size:3rem;
+    color:#38bdf8;
+}
+
+.subtitle{
+    opacity:0.8;
+}
+
+/* Cards */
+
+.card{
+    background:#1e293b;
+    padding:25px;
+    border-radius:10px;
+    margin-bottom:25px;
+    box-shadow:0 5px 20px rgba(0,0,0,0.3);
+}
+
+/* Headings */
+
+h2{
+    margin-bottom:15px;
+}
+
+/* Navigation */
+
+ul{
+    list-style:none;
+}
+
+li{
+    margin-bottom:8px;
+}
+
+a{
+    color:#38bdf8;
+    text-decoration:none;
+}
+
+.card ul{
+    display:flex;
+    gap:20px;
+    justify-content:center;
+}
+
+.card ul li{
+    list-style: none;
+}
+
+.card ul li a{
+    padding: 8px 14px;
+    background: #334155;
+    border-radius: 6px;
+    transition: 0.2s;
+}
+
+.card ul li a:hover{
+    background: #475569;
+}
+
+/* Image */
+
+img{
+    width:100%;
+    max-width:400px;
+    border-radius:8px;
+}
+
+/* Forms */
+
+form{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+}
+
+/* Inputs */
+
+input, textarea{
+    padding:10px;
+    border-radius:6px;
+    border:none;
+    background:#334155;
+    color:white;
+}
+
+/* Buttons */
+
+button, .button{
+    background:#38bdf8;
+    border:none;
+    padding:10px 16px;
+    border-radius:6px;
+    color:black;
+    font-weight:bold;
+    cursor:pointer;
+    width:fit-content;
+}
+
+button:hover, .button:hover{
+    background:#0ea5e9;
+}
+
+/* Method badges */
+
+.method{
+    padding:4px 8px;
+    border-radius:5px;
+    font-size:0.8rem;
+    margin-right:6px;
+}
+
+.get{
+    background:#16a34a;
+}
+
+.post{
+    background:#2563eb;
+}
+
+.delete{
+    background:#dc2626;
+}
+
+/* Footer */
+
+footer{
+    text-align:center;
+    margin-top:40px;
+    opacity:0.6;
+}
+
+/* spacing inside cards */
+
+.card h3{
+    margin-top:20px;
+    margin-bottom:8px;
+}
+
+.card form{
+    margin-bottom:15px;
+}
+
+.card a.button{
+    margin-top:10px;
+    display:inline-block;
+}
+
+/* Info.html */
 
 #img-div {
 	display: flex;

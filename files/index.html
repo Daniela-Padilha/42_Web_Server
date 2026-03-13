@@ -2,21 +2,100 @@
 <html>
 <head>
     <meta charset="UTF-8">
-	<meta name="viewport" content="width=width-device, initial-scale=1.0">
-	<link rel="stylesheet" href="style.css">
-    <title>Webserv</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webserv Tester</title>
+    <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-    <h1>RAD team presents</h1>
-    <h2 id="subtitle"><strong>Webserver</strong></h2>
-    <h3>Navigation</h3>
+
+<div class="container">
+
+<header>
+    <h1>RAD Team Presents</h1>
+    <p class="subtitle">Webserv Test Interface</p>
+</header>
+
+<section class="card">
+    <h2>Navigation</h2>
     <ul>
         <li><a href="/info.html">Info page</a></li>
-        <li><a href="/images/test.jpg">Image file</a></li>
+        <li><a href="/images/cat1.jpg">Image file</a></li>
         <li><a href="/nonexistent">Broken link (404 test)</a></li>
     </ul>
-</body>
+</section>
+
+<section class="card">
+    <h2>Static Image</h2>
+    <div id="img-div">
+        <img src="images/cat.jpg" alt="Test image">
+    </div>
+</section>
+
+<section class="card">
+    <h2><span class="method get">GET</span> Form Test</h2>
+    <form method="GET" action="/search">
+        <input type="text" name="name" placeholder="Your name">
+        <button type="submit">Send GET</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2><span class="method post">POST</span> Form Test</h2>
+    <form method="POST" action="/submit">
+        <input type="email" name="email" placeholder="Email">
+        <textarea name="message" placeholder="Message"></textarea>
+        <button type="submit">Send POST</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2><span class="method post">POST</span> File Upload</h2>
+    <form method="POST" action="/upload" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload File</button>
+    </form>
+</section>
+
+<section class="card">
+    <h2>Redirect Test</h2>
+    <a class="button" href="/redirect">Test Redirect</a>
+</section>
+
+<section class="card">
+    <h2><span class="method delete">DELETE</span> Request</h2>
+    <form method="POST" action="/delete?_method=DELETE">
+        <input type="text" name="filename" placeholder="file.txt">
+        <button type="submit">Delete File</button>
+    </form>
+</section>
+
+<section class="card">
+<h2>PHP CGI Tester</h2>
+
+<h3>GET Test</h3>
+<form action="/cgi-bin/test.php" method="GET">
+<input type="text" name="name" placeholder="Your name">
+<button type="submit">Send GET</button>
+</form>
+
+<h3>POST Test</h3>
+<form action="/cgi-bin/test.php" method="POST">
+<input type="text" name="username" placeholder="Username">
+<input type="password" name="password" placeholder="Password">
+<button type="submit">Send POST</button>
+</form>
+
+<h3>Direct Script</h3>
+<a class="button" href="/cgi-bin/test.php">Run CGI Script</a>
+
+</section>
+
 <footer>
-    <p><i>Hope you enjoy our project!</i></p>
+    <p>RAD Team • Webserv Project</p>
 </footer>
+
+</div>
+
+</body>
 </html>
