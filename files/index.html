@@ -34,7 +34,7 @@
 
 <section class="card">
     <h2><span class="method get">GET</span> Form Test</h2>
-    <form method="GET" action="/search">
+    <form method="GET" action="/">
         <input type="text" name="name" placeholder="Your name">
         <button type="submit">Send GET</button>
     </form>
@@ -59,7 +59,7 @@
 
 <section class="card">
     <h2>Redirect Test</h2>
-    <a class="button" href="/redirect">Test Redirect</a>
+    <a class="button" href="/info.html">Test Redirect</a>
 </section>
 
 <section class="card">
@@ -74,20 +74,20 @@
 <h2>PHP CGI Tester</h2>
 
 <h3>GET Test</h3>
-<form action="/cgi-bin/test.php" method="GET">
+<form action="/cgi/test.php" method="GET">
 <input type="text" name="name" placeholder="Your name">
 <button type="submit">Send GET</button>
 </form>
 
 <h3>POST Test</h3>
-<form action="/cgi-bin/test.php" method="POST">
+<form action="/cgi/test.php" method="POST">
 <input type="text" name="username" placeholder="Username">
 <input type="password" name="password" placeholder="Password">
 <button type="submit">Send POST</button>
 </form>
 
 <h3>Direct Script</h3>
-<a class="button" href="/cgi-bin/test.php">Run CGI Script</a>
+<a class="button" href="/cgi/test.php">Run CGI Script</a>
 
 </section>
 
