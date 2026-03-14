@@ -19,6 +19,7 @@ HEADERS			:=															\
 	inc/Server.hpp															\
 	inc/signals.hpp															\
 	inc/init.hpp															\
+	inc/CGI.hpp																\
 
 SRCS			:=															\
 	src/main.cpp															\
@@ -34,6 +35,7 @@ SRCS			:=															\
 	src/Client.cpp															\
 	src/Server.cpp															\
 	src/signals.cpp															\
+	src/CGI.cpp																\
 
 
 OBJS 			:= $(SRCS:/%.cpp=$(BUILD_DIR)/%.o)
@@ -292,6 +294,7 @@ test: check-guards fclean $(NAME)
 	trap - INT TERM														; \
 	echo "$(COR)$(GRAY)=========================================="\
 	" $(NAME) TESTER$(COR)"												; \
+	chmod +x cgi_tester 2>/dev/null || true								; \
 	./$(NAME) tester.conf & echo $$! > server.pid						; \
 	sleep 2																; \
 	trap '' INT TERM													; \
@@ -310,6 +313,8 @@ upload-delete: $(NAME)
 	@\
 	echo "==TESTS== $(GRAY)Starting upload and delete test...$(COR)"	; \
 	pkill -x $(NAME) || true											; \
+	pkill -x $(NAME).out || true										; \
+	sleep 1																; \
 	rm -f server.pid													; \
 	mkdir -p uploads													; \
 	./$(NAME)  & echo $$! > server.pid					; \

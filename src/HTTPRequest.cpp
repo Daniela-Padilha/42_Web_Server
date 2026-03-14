@@ -471,9 +471,34 @@ std::string HTTPRequest::get_header_value(const std::string &key) const
 	return "";
 }
 
+const std::map<std::string, std::string> &HTTPRequest::get_headers() const
+{
+	return headers_;
+}
+
 const std::string &HTTPRequest::get_body() const
 {
 	return body_;
+}
+
+const std::string &HTTPRequest::get_internal_buffer() const
+{
+	return buffer_;
+}
+
+bool HTTPRequest::is_chunked() const
+{
+	return is_chunked_;
+}
+
+size_t HTTPRequest::get_chunk_remaining() const
+{
+	return chunk_remaining_;
+}
+
+int HTTPRequest::get_chunked_state() const
+{
+	return static_cast<int>(chunked_state_);
 }
 
 //////////////////////////////////////////////////////////////////// checking //
@@ -485,6 +510,11 @@ bool HTTPRequest::is_error() const
 bool HTTPRequest::is_body_too_large() const
 {
 	return body_too_large_;
+}
+
+bool HTTPRequest::is_headers_done() const
+{
+	return state_ == PARSSING_BODY_ || state_ == PARSSING_COMPLETE_;
 }
 
 void HTTPRequest::set_max_body_size(size_t size)

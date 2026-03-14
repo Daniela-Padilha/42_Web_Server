@@ -30,6 +30,7 @@ class HTTPResponse
 
 	///////////////////////////////////////////////////////////////// Getters //
 	std::string to_string() const;
+	std::string header_to_string() const; // status + headers + \r\n, no body
 
 	////////////////////////////////////////////////////////////// Code pages //
 	static HTTPResponse error_400(const std::string &page_path = "");

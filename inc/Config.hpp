@@ -50,20 +50,20 @@ class Config
 	static std::vector<std::string> tokenize(const std::string &line);
 	static std::string				clean_line(const std::string &line);
 
-	bool							parse_server_block(std::ifstream &file, ServerConfig &srv);
-	bool							parse_location_block(std::ifstream	   &file,
-														 const std::string &path,
-														 RouteConfig	   &out);
-	bool							parse_directive(ServerConfig				   &srv,
-													const std::vector<std::string> &words);
-	bool							parse_route_directive(RouteConfig					 &route,
-														  const std::vector<std::string> &words);
-	bool							parse_autoindex(RouteConfig					   &route,
-													const std::vector<std::string> &words);
-	bool							parse_allow_methods(RouteConfig					   &route,
-														const std::vector<std::string> &words);
-	bool							parse_return(RouteConfig					&route,
-												 const std::vector<std::string> &words);
+	bool parse_server_block(std::ifstream &file, ServerConfig &srv);
+	bool parse_location_block(std::ifstream		&file,
+							  const std::string &path,
+							  RouteConfig		&out);
+	bool parse_directive(ServerConfig					&srv,
+						 const std::vector<std::string> &words);
+	bool parse_route_directive(RouteConfig					  &route,
+							   const std::vector<std::string> &words);
+	bool parse_autoindex(RouteConfig					&route,
+						 const std::vector<std::string> &words);
+	bool parse_allow_methods(RouteConfig					&route,
+							 const std::vector<std::string> &words);
+	bool parse_return(RouteConfig					 &route,
+					  const std::vector<std::string> &words);
 	bool parse_route_string_directive(const std::vector<std::string> &words,
 									  std::string					 &out,
 									  const std::string &directive);
@@ -88,9 +88,9 @@ class Config
 	~Config();
 
 	////////////////////////////////////////////////////////////////// Public //
-	bool							parse(const std::string &filepath);
+	bool							 parse(const std::string &filepath);
 	const std::vector<ServerConfig> &get_server() const;
-	const std::string  				&error() const;
+	const std::string				&error() const;
 };
 
 #endif

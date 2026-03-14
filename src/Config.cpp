@@ -201,7 +201,7 @@ const std::string &Config::error() const
 //////////////////////////////////////////////////////////////// Server Block //
 bool Config::parse_server_block(std::ifstream &file, ServerConfig &srv)
 {
-	std::string	 trimmed;
+	std::string trimmed;
 
 	while (read_next_line(file, trimmed))
 	{

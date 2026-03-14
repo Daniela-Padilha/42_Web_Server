@@ -69,7 +69,9 @@ void HTTPResponse::set_body(const std::string &body)
 void HTTPResponse::clear_body()
 {
 	body_.clear();
-	this->set_body("");
+	// Preserve Content-Length header — RFC 7231 requires HEAD responses to
+	// carry the same header fields as the equivalent GET response, including
+	// the Content-Length of the entity body that WOULD have been sent.
 }
 
 std::string HTTPResponse::build_response() const
@@ -96,6 +98,21 @@ std::string HTTPResponse::build_response() const
 std::string HTTPResponse::to_string() const
 {
 	return build_response();
+}
+
+std::string HTTPResponse::header_to_string() const
+{
+	std::ostringstream oss;
+	oss << status_line_ << "\r\n";
+	for (std::map<std::string, std::string>::const_iterator it
+		 = headers_.begin();
+		 it != headers_.end();
+		 ++it)
+	{
+		oss << it->first << ": " << it->second << "\r\n";
+	}
+	oss << "\r\n";
+	return oss.str();
 }
 
 HTTPResponse HTTPResponse::error_400(const std::string &page_path)
