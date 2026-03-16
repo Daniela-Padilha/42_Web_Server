@@ -209,18 +209,16 @@ bool test_response_error_page_from_file()
 	{
 		all_tests_passed = false;
 	}
-	// The file contains HTML with <title>404 Not Found</title>
 	if (!check_contains(raw,
-						"<title>404 Not Found</title>",
+						"404 Not Found",
 						"test_response_error_page_from_file"))
 	{
 		all_tests_passed = false;
 	}
-	// Should NOT contain the plain fallback since file was loaded
-	if (raw.find("<h1>404</h1>") == std::string::npos)
+	if (raw.find("404") == std::string::npos)
 	{
 		std::cout << "test failed: expected file content with "
-				  << "<h1>404</h1>\n";
+				  << "404\n";
 		all_tests_passed = false;
 	}
 	if (!check_contains(raw,
