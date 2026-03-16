@@ -200,7 +200,7 @@ bool test_response_redirect_302()
 bool test_response_error_page_from_file()
 {
 	bool		 all_tests_passed = true;
-	HTTPResponse res = HTTPResponse::error_404("files/error_404.html");
+	HTTPResponse res = HTTPResponse::error_404("error_pages/404.html");
 	std::string	 raw = res.to_string();
 
 	if (!check_contains(raw,
