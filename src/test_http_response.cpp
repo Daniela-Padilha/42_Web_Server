@@ -200,7 +200,7 @@ bool test_response_redirect_302()
 bool test_response_error_page_from_file()
 {
 	bool		 all_tests_passed = true;
-	HTTPResponse res = HTTPResponse::error_404("error_pages/404.html");
+	HTTPResponse res = HTTPResponse::error_404("files/error_pages/404.html");
 	std::string	 raw = res.to_string();
 
 	if (!check_contains(raw,
@@ -217,8 +217,7 @@ bool test_response_error_page_from_file()
 	}
 	if (raw.find("404") == std::string::npos)
 	{
-		std::cout << "test failed: expected file content with "
-				  << "404\n";
+		std::cout << "test failed: expected file content with " << "404\n";
 		all_tests_passed = false;
 	}
 	if (!check_contains(raw,

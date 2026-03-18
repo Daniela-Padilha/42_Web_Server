@@ -365,12 +365,12 @@ cgi-test: $(NAME)
 	pkill -x $(NAME) || true											; \
 	sleep 1																; \
 	rm -f server.pid													; \
-	chmod +x cgi-bin/*.py												; \
+	chmod +x files/cgi/*.py												; \
 	./$(NAME) & echo $$! > server.pid									; \
 	sleep 2																; \
 	FAIL=0																; \
 	echo -n "Test 1:  GET basic CGI ... "								; \
-	RESP=$$(curl -s http://localhost:8080/cgi-bin/hello.py)				; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/hello.py)				; \
 	if echo "$$RESP" | grep -q "Hello from CGI"; then						\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -378,7 +378,7 @@ cgi-test: $(NAME)
 		FAIL=$$((FAIL + 1))												; \
 	fi																	; \
 	echo -n "Test 2:  GET with query string ... "						; \
-	RESP=$$(curl -s "http://localhost:8080/cgi-bin/hello.py?foo=bar&baz=42"); \
+	RESP=$$(curl -s "http://localhost:8080/files/cgi/hello.py?foo=bar&baz=42"); \
 	if echo "$$RESP" | grep -q "foo=bar"; then								\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -387,7 +387,7 @@ cgi-test: $(NAME)
 	fi																	; \
 	echo -n "Test 3:  POST with body ... "								; \
 	RESP=$$(curl -s -X POST -d "test_body=hello"						\
-		http://localhost:8080/cgi-bin/hello.py)							; \
+		http://localhost:8080/files/cgi/hello.py)							; \
 	if echo "$$RESP" | grep -q "test_body=hello"; then						\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -397,7 +397,7 @@ cgi-test: $(NAME)
 	echo -n "Test 4:  POST Content-Type forwarded ... "					; \
 	RESP=$$(curl -s -X POST											\
 		-H "Content-Type: application/x-www-form-urlencoded"			\
-		-d "key=value" http://localhost:8080/cgi-bin/hello.py)			; \
+		-d "key=value" http://localhost:8080/files/cgi/hello.py)			; \
 	if echo "$$RESP" | grep -q "key=value"; then							\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -405,7 +405,7 @@ cgi-test: $(NAME)
 		FAIL=$$((FAIL + 1))												; \
 	fi																	; \
 	echo -n "Test 5:  CGI custom headers ... "							; \
-	RESP=$$(curl -s -D - http://localhost:8080/cgi-bin/headers.py)		; \
+	RESP=$$(curl -s -D - http://localhost:8080/files/cgi/headers.py)		; \
 	if echo "$$RESP" | grep -qi "X-Custom: test123"; then					\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -414,7 +414,7 @@ cgi-test: $(NAME)
 	fi																	; \
 	echo -n "Test 6:  CGI custom status code ... "						; \
 	CODE=$$(curl -s -o /dev/null -w "%{http_code}"						\
-		http://localhost:8080/cgi-bin/status.py)							; \
+		http://localhost:8080/files/cgi/status.py)							; \
 	if [ "$$CODE" = "404" ]; then											\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -422,7 +422,7 @@ cgi-test: $(NAME)
 		FAIL=$$((FAIL + 1))												; \
 	fi																	; \
 	echo -n "Test 7:  CGI large output (~100KB) ... "					; \
-	RESP=$$(curl -s http://localhost:8080/cgi-bin/large_output.py)		; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/large_output.py)		; \
 	if echo "$$RESP" | grep -q "CGI_LARGE_OUTPUT_END"; then					\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -431,10 +431,10 @@ cgi-test: $(NAME)
 	fi																	; \
 	echo -n "Test 8:  CGI timeout (server stays responsive) ... "		; \
 	curl -s -o /dev/null --max-time 3									\
-		http://localhost:8080/cgi-bin/timeout.py &						\
+		http://localhost:8080/files/cgi/timeout.py &						\
 	TIMEOUT_PID=$$!														; \
 	sleep 1																; \
-	RESP=$$(curl -s --max-time 5 http://localhost:8080/cgi-bin/hello.py); \
+	RESP=$$(curl -s --max-time 5 http://localhost:8080/files/cgi/hello.py); \
 	if echo "$$RESP" | grep -q "Hello from CGI"; then						\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -444,7 +444,7 @@ cgi-test: $(NAME)
 	wait $$TIMEOUT_PID 2>/dev/null										; \
 	echo -n "Test 9:  Non-existent CGI script ... "						; \
 	CODE=$$(curl -s -o /dev/null -w "%{http_code}"						\
-		http://localhost:8080/cgi-bin/nonexistent.py)					; \
+		http://localhost:8080/files/cgi/nonexistent.py)					; \
 	if [ "$$CODE" = "404" ] || [ "$$CODE" = "500" ]; then					\
 		echo "$(GREEN)PASS$(COR)"										; \
 	else																	\
@@ -452,7 +452,7 @@ cgi-test: $(NAME)
 		FAIL=$$((FAIL + 1))												; \
 	fi																	; \
 	echo -n "Test 10: CGI PATH_INFO and cwd ... "						; \
-	RESP=$$(curl -s http://localhost:8080/cgi-bin/pathinfo.py)			; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/pathinfo.py)			; \
 	if echo "$$RESP" | grep -q "PATH_INFO="								\
 		&& echo "$$RESP" | grep -q "CWD="; then							\
 		echo "$(GREEN)PASS$(COR)"										; \

@@ -96,7 +96,7 @@ std::string CGI::_getScriptPath() const
 	// Strip the route prefix so the script path is relative to route.root.
 	// e.g. route.path="/cgi-bin", request_target="/cgi-bin/hello.py"
 	//      → strip_prefix → "/hello.py"
-	//      route.root + "/hello.py" = "./cgi-bin/hello.py"
+	//      route.root + "/hello.py" = "./files/cgi/hello.py"
 	const std::string &prefix = _route.path;
 	if (!prefix.empty() && prefix != "/"
 		&& request_target.compare(0, prefix.size(), prefix) == 0)
