@@ -469,6 +469,23 @@ cgi-test: $(NAME)
 	fi																	; \
 	echo "$(GREEN)==CGI-TEST== All 10 tests passed!$(COR)"
 
+######################################################################## Siege #
+siege: $(NAME)
+	@\
+	echo "$(GRAY)==SIEGE== Starting stress test...$(COR)"				; \
+	pkill -x $(NAME) || true ; \
+	sleep 1 ; \
+	rm -f server.pid ; \
+	./$(NAME) & echo $$! > server.pid ; \
+	sleep 2 ; \
+	trap '' INT TERM ; \
+	siege -b -t 30S -c 50 http://127.0.0.1:8080/ ; \
+	RET=$$? ; \
+	trap - INT TERM ; \
+	kill $$(cat server.pid) 2>/dev/null ; \
+	rm -f server.pid ; \
+	exit $$RET
+
 exe: format fclean $(NAME) 
 	@\
 	echo '$(GRAY)Executing arg:$(COR)	time ./$(TEST_RUN)'				; \
