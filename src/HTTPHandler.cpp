@@ -323,6 +323,11 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest	&request,
 		}
 	}
 
+	if (access(file_path.c_str(), F_OK) != 0)
+		return HTTPResponse::error_404(get_error_page(404, server));
+
+	if (access(file_path.c_str(), R_OK) != 0)
+		return HTTPResponse::error_403(get_error_page(403, server));
 	std::ifstream file(file_path.c_str(), std::ios::binary);
 	if (!file)
 	{
@@ -479,6 +484,11 @@ HTTPResponse HTTPHandler::handle_delete(const HTTPRequest  &request,
 		return HTTPResponse::error_400(get_error_page(400, server));
 	}
 
+	if (access(file_path.c_str(), F_OK) != 0)
+		return HTTPResponse::error_404(get_error_page(404, server));
+
+	if (access(file_path.c_str(), W_OK) != 0)
+		return HTTPResponse::error_403(get_error_page(403, server));
 	if (unlink(file_path.c_str()) < 0)
 	{
 		dprint("HTTPHandler: Failed to delete file: " << strerror(errno));

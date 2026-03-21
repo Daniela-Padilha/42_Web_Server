@@ -1,14 +1,9 @@
 <?php
-
-echo "<h1>PHP CGI Test</h1>";
-
-echo "<h2>GET parameters</h2>";
-print_r($_GET);
-
-echo "<h2>POST parameters</h2>";
-print_r($_POST);
-
-echo "<h2>Server variables</h2>";
-print_r($_SERVER);
-
+echo "Content-Type: text/html\r\n\r\n";
+echo "<html><body>";
+echo "<h1>PHP CGI is working</h1>";
+echo "<p>Hello from test.php</p>";
+echo "</body></html>";
 ?>
+
+<!-- curl -i http://127.0.0.1:8085/cgi/test.php -->
