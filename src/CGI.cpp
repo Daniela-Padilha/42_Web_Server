@@ -108,7 +108,14 @@ std::string CGI::_getScriptPath() const
 		}
 	}
 
-	return _route.root + request_target;
+	std::string relative = _route.root + request_target;
+	char resolved[4096];
+    if (realpath(relative.c_str(), resolved) != NULL)
+	{
+        return std::string(resolved);
+	}
+
+	return relative;
 }
 
 std::string CGI::execute()
