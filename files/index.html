@@ -71,24 +71,23 @@
 </section>
 
 <section class="card">
-<h2>PHP CGI Tester</h2>
+  <h2>PHP CGI Tester</h2>
 
-<h3>GET Test</h3>
-<form action="/cgi/test.php" method="GET">
-<input type="text" name="name" placeholder="Your name">
-<button type="submit">Send GET</button>
-</form>
+  <h3>GET Test</h3>
+  <form action="http://127.0.0.1:8080/files/cgi/browser.php" method="GET">
+    <input type="text" name="name" placeholder="Your name">
+    <button type="submit">Send GET</button>
+  </form>
 
-<h3>POST Test</h3>
-<form action="/cgi/test.php" method="POST">
-<input type="text" name="username" placeholder="Username">
-<input type="password" name="password" placeholder="Password">
-<button type="submit">Send POST</button>
-</form>
+  <h3>POST Test</h3>
+  <form action="http://127.0.0.1:8080/files/cgi/browser.php" method="POST">
+    <input type="text" name="username" placeholder="Username">
+    <input type="password" name="password" placeholder="Password">
+    <button type="submit">Send POST</button>
+  </form>
 
-<h3>Direct Script</h3>
-<a class="button" href="/cgi/test.php">Run CGI Script</a>
-
+  <h3>Direct Script</h3>
+  <a class="button" href="http://127.0.0.1:8080/files/cgi/browser.php">Run CGI Script</a>
 </section>
 
 <footer>

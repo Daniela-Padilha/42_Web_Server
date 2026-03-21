@@ -19,6 +19,7 @@ HEADERS			:=															\
 	inc/Server.hpp															\
 	inc/signals.hpp															\
 	inc/init.hpp															\
+	inc/CGI.hpp																\
 
 SRCS			:=															\
 	src/main.cpp															\
@@ -34,6 +35,7 @@ SRCS			:=															\
 	src/Client.cpp															\
 	src/Server.cpp															\
 	src/signals.cpp															\
+	src/CGI.cpp																\
 
 
 OBJS 			:= $(SRCS:/%.cpp=$(BUILD_DIR)/%.o)
@@ -96,7 +98,7 @@ fclean: clean
 re: fclean all
 	@echo "$(GRAY)redone$(COR)"
 
-.PHONY: all clean fclean re clang-check line
+.PHONY: all clean fclean re clang-check line cgi-test
 ####################################################################### Format #
 .clang-format:
 	@echo "\
@@ -292,6 +294,7 @@ test: check-guards fclean $(NAME)
 	trap - INT TERM														; \
 	echo "$(COR)$(GRAY)=========================================="\
 	" $(NAME) TESTER$(COR)"												; \
+	chmod +x cgi_tester 2>/dev/null || true								; \
 	./$(NAME) tester.conf & echo $$! > server.pid						; \
 	sleep 2																; \
 	trap '' INT TERM													; \
@@ -310,6 +313,8 @@ upload-delete: $(NAME)
 	@\
 	echo "==TESTS== $(GRAY)Starting upload and delete test...$(COR)"	; \
 	pkill -x $(NAME) || true											; \
+	pkill -x $(NAME).out || true										; \
+	sleep 1																; \
 	rm -f server.pid													; \
 	mkdir -p uploads													; \
 	./$(NAME)  & echo $$! > server.pid					; \
@@ -352,6 +357,117 @@ upload-delete: $(NAME)
 	fi																	; \
 	echo "==TESTS== $(GREEN)Integration Check Passed!$(COR)"			; \
 	kill $$(cat server.pid) && rm -f server.pid test_upload.txt
+
+cgi-test: $(NAME)
+	@\
+	echo "$(COR)$(GRAY)=========================================="\
+	" $(NAME) CGI TESTS$(COR)"											; \
+	pkill -x $(NAME) || true											; \
+	sleep 1																; \
+	rm -f server.pid													; \
+	chmod +x files/cgi/*.py												; \
+	./$(NAME) & echo $$! > server.pid									; \
+	sleep 2																; \
+	FAIL=0																; \
+	echo -n "Test 1:  GET basic CGI ... "								; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/hello.py)				; \
+	if echo "$$RESP" | grep -q "Hello from CGI"; then						\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 2:  GET with query string ... "						; \
+	RESP=$$(curl -s "http://localhost:8080/files/cgi/hello.py?foo=bar&baz=42"); \
+	if echo "$$RESP" | grep -q "foo=bar"; then								\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 3:  POST with body ... "								; \
+	RESP=$$(curl -s -X POST -d "test_body=hello"						\
+		http://localhost:8080/files/cgi/hello.py)							; \
+	if echo "$$RESP" | grep -q "test_body=hello"; then						\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 4:  POST Content-Type forwarded ... "					; \
+	RESP=$$(curl -s -X POST											\
+		-H "Content-Type: application/x-www-form-urlencoded"			\
+		-d "key=value" http://localhost:8080/files/cgi/hello.py)			; \
+	if echo "$$RESP" | grep -q "key=value"; then							\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 5:  CGI custom headers ... "							; \
+	RESP=$$(curl -s -D - http://localhost:8080/files/cgi/headers.py)		; \
+	if echo "$$RESP" | grep -qi "X-Custom: test123"; then					\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 6:  CGI custom status code ... "						; \
+	CODE=$$(curl -s -o /dev/null -w "%{http_code}"						\
+		http://localhost:8080/files/cgi/status.py)							; \
+	if [ "$$CODE" = "404" ]; then											\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR) (got $$CODE)"							; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 7:  CGI large output (~100KB) ... "					; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/large_output.py)		; \
+	if echo "$$RESP" | grep -q "CGI_LARGE_OUTPUT_END"; then					\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 8:  CGI timeout (server stays responsive) ... "		; \
+	curl -s -o /dev/null --max-time 3									\
+		http://localhost:8080/files/cgi/timeout.py &						\
+	TIMEOUT_PID=$$!														; \
+	sleep 1																; \
+	RESP=$$(curl -s --max-time 5 http://localhost:8080/files/cgi/hello.py); \
+	if echo "$$RESP" | grep -q "Hello from CGI"; then						\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	wait $$TIMEOUT_PID 2>/dev/null										; \
+	echo -n "Test 9:  Non-existent CGI script ... "						; \
+	CODE=$$(curl -s -o /dev/null -w "%{http_code}"						\
+		http://localhost:8080/files/cgi/nonexistent.py)					; \
+	if [ "$$CODE" = "404" ] || [ "$$CODE" = "500" ]; then					\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR) (got $$CODE)"							; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo -n "Test 10: CGI PATH_INFO and cwd ... "						; \
+	RESP=$$(curl -s http://localhost:8080/files/cgi/pathinfo.py)			; \
+	if echo "$$RESP" | grep -q "PATH_INFO="								\
+		&& echo "$$RESP" | grep -q "CWD="; then							\
+		echo "$(GREEN)PASS$(COR)"										; \
+	else																	\
+		echo "$(ORANGE)FAIL$(COR)"										; \
+		FAIL=$$((FAIL + 1))												; \
+	fi																	; \
+	echo "$(GRAY)------------------------------------------$(COR)"		; \
+	kill $$(cat server.pid) 2>/dev/null									; \
+	rm -f server.pid													; \
+	if [ $$FAIL -ne 0 ]; then												\
+		echo "$(ORANGE)==CGI-TEST== $$FAIL test(s) FAILED$(COR)"		; \
+		exit 1															; \
+	fi																	; \
+	echo "$(GREEN)==CGI-TEST== All 10 tests passed!$(COR)"
 
 exe: format fclean $(NAME) 
 	@\

@@ -77,15 +77,21 @@ class HTTPRequest
 	const std::string &get_protocol() const;
 
 	std::string		   get_header_value(const std::string &key) const;
+	const std::map<std::string, std::string> &get_headers() const;
 
-	const std::string &get_body() const;
+	const std::string						 &get_body() const;
+	const std::string						 &get_internal_buffer() const;
+	bool									  is_chunked() const;
+	size_t									  get_chunk_remaining() const;
+	int										  get_chunked_state() const;
 
 	/////////////////////////////////////////////////////////////////// Utils //
-	bool			   parse(const std::string &buffer);
-	bool			   is_error() const;
-	bool			   is_body_too_large() const;
-	void			   set_max_body_size(size_t size);
-	void			   reset();
+	bool									  parse(const std::string &buffer);
+	bool									  is_error() const;
+	bool									  is_body_too_large() const;
+	bool									  is_headers_done() const;
+	void									  set_max_body_size(size_t size);
+	void									  reset();
 };
 
 #endif

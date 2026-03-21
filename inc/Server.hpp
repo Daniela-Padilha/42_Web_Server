@@ -41,18 +41,32 @@ class Server
 	std::vector<ServerConfig> configs_;
 	bool					  init_ok_;
 
+	// Maps CGI stdout fd → client fd so we can find the client when CGI has
+	// output
+	std::map<int, int>		  cgi_fd_to_client_fd_;
+	// Maps CGI stdin fd → client fd so we can flush pending data when pipe
+	// drains
+	std::map<int, int>		  cgi_stdin_fd_to_client_fd_;
+
 	static void				  set_non_blocking(int fd);
 	static void				  set_reuse_addr(int fd);
 	void					  cleanup_sockets_();
 	void					  remove_client(size_t index);
 	Client					 *get_client(int fd);
+	Client					 *get_client_by_cgi_fd(int cgi_fd);
 	const RouteConfig		 *match_route(const std::string	 &uri,
 										  const ServerConfig &config) const;
 	bool					  handle_poll_errors(size_t &idx);
 	bool					  handle_poll_input(size_t &idx);
 	bool					  isListeningSocket(int fd) const;
+	bool					  isCgiFd(int fd) const;
+	bool					  isCgiStdinFd(int fd) const;
 	void					  handle_client_read(size_t &idx);
 	bool					  handle_poll_output(size_t &idx);
+	void					  handle_cgi_output(size_t &idx);
+	void					  handle_cgi_stdin_writable(size_t &idx);
+	void					  dispatch_cgi(Client &client, size_t idx);
+	void					  finalize_cgi(Client &client, size_t idx);
 
 	Server(const Server &);
 	Server &operator=(const Server &);
