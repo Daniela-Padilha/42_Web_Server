@@ -299,57 +299,11 @@ HTTPResponse HTTPHandler::handle_get(const HTTPRequest &request,
 		}
 	}
 
-	// IN PROGRESS 
-	if (!route.cgi_path.empty())
-	{
-	CGI cgi(request, route, server);
-	std::string cgi_output = cgi.execute();
-
-	if (cgi_output.empty())
-		return HTTPResponse::error_500(get_error_page(500, server));
-
-	size_t header_end = cgi_output.find("\r\n\r\n");
-	size_t sep_len = 4;
-
-	if (header_end == std::string::npos)
-	{
-		header_end = cgi_output.find("\n\n");
-		sep_len = 2;
-	}
-
-	if (header_end == std::string::npos)
-		return HTTPResponse::error_500(get_error_page(500, server));
-
-	std::string cgi_headers = cgi_output.substr(0, header_end);
-	std::string body = cgi_output.substr(header_end + sep_len);
-
-	std::string content_type = "text/html";
-	std::istringstream iss(cgi_headers);
-	std::string line;
-
-	while (std::getline(iss, line))
-	{
-		if (!line.empty() && line[line.size() - 1] == '\r')
-			line.erase(line.size() - 1);
-
-		if (line.find("Content-Type:") == 0)
-		{
-			content_type = line.substr(std::string("Content-Type:").size());
-			while (!content_type.empty() && (content_type[0] == ' ' || content_type[0] == '\t'))
-				content_type.erase(0, 1);
-		}
-	}
-	// END OF IN PROGRESS
-
 	if (access(file_path.c_str(), F_OK) != 0)
-	{
 		return HTTPResponse::error_404(get_error_page(404, server));
-	}
 
 	if (access(file_path.c_str(), R_OK) != 0)
-	{
 		return HTTPResponse::error_403(get_error_page(403, server));
-	}
 	std::ifstream file(file_path.c_str(), std::ios::binary);
 	if (!file)
 	{
